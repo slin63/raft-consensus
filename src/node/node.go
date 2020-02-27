@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sync"
 	"time"
 
 	"../config"
@@ -13,6 +14,7 @@ import (
 
 // Raft state
 var raft *spec.Raft
+var leader bool
 
 // Membership layer state
 var self spec.Self
@@ -35,10 +37,33 @@ func Live(leader bool) {
 	log.SetPrefix(config.C.Prefix + fmt.Sprintf(" [PID=%d]", self.PID) + " - ")
 	spec.ReportOnline()
 
-	// go serveFilesystemRPC()
+	go serveOceanRPC()
 	go subscribeMembership()
+
+	// Code for heart beating
+	var wgHeartbeat sync.WaitGroup
+	for {
+		if leader {
+			heartbeat(raft, &wgHeartbeat)
+		}
+		time.Sleep(time.Duration(config.C.HeartbeatInterval) * time.Millisecond)
+	}
 	// go listenForLeave()
 	<-block
+}
+
+// CallAppendEntries on every other node
+func heartbeat(raft *spec.Raft, wg *sync.WaitGroup) {
+	spec.SelfRWMutex.RLock()
+	for PID := range self.MemberMap {
+		if PID != self.PID {
+			wg.Add(1)
+			go CallAppendEntries(PID, &spec.AppendEntriesArgs{}, wg)
+			log.Printf("[HEARTBEAT]: [PID=%d]", PID)
+		}
+	}
+	spec.SelfRWMutex.RUnlock()
+	wg.Wait()
 }
 
 // Periodically poll for membership information

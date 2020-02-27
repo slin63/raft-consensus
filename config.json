@@ -1,8 +1,11 @@
 {
     "Introducer": "raft-introducer",
-    "ElectTimeoutMin": 150,
-    "ElectTimeoutMax": 300,
+    "ElectTimeoutMin": 500,
+    "ElectTimeoutMax": 1000,
+    "HeartbeatInterval": 250,
     "Prefix": "[RAFT]",
     "Logfile": "raft.log",
-    "RPCPort": "6003"
+    "RPCPort": "6003",
+    "RPCMaxRetries": 5,
+    "RPCRetryInterval": 1
 }

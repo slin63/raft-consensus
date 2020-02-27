@@ -10,16 +10,19 @@ import (
 
 type configParam struct {
 	// Protocol
-	Introducer      string
-	ElectTimeoutMin int
-	ElectTimeoutMax int
+	Introducer        string
+	ElectTimeoutMin   int
+	ElectTimeoutMax   int
+	HeartbeatInterval int
 
 	// Logging
 	Prefix  string
 	Logfile string
 
 	// Networking
-	RPCPort string
+	RPCPort          string
+	RPCMaxRetries    int
+	RPCRetryInterval int
 }
 
 var C configParam

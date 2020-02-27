@@ -2,12 +2,16 @@
 package node
 
 import (
+	"fmt"
 	"log"
 	"net"
 	"net/http"
 	"net/rpc"
+	"sync"
+	"time"
 
 	"../config"
+	"../spec"
 )
 
 // Because rafts float in the ocean
@@ -21,41 +25,64 @@ func serveOceanRPC() {
 	if e != nil {
 		log.Fatal("[ERROR] serveOceanRPC():", e)
 	}
+	log.Println("[RPC] serveOceanRPCs")
 	http.Serve(l, nil)
 }
 
-// // Put (from: client)
-// // Hash the file onto some appropriate point on the ring.
-// // Message that point on the ring with the filename and data.
-// // Respond to the client with the process ID of the server that was selected.
-// func (f *Ocean) Put(args spec.PutArgs, PIDPtr *int) error {
-// 	log.SetPrefix(log.Prefix() + "Put(): ")
-// 	defer log.SetPrefix(spec.Prefix + fmt.Sprintf(" [PID=%d]", self.PID) + " - ")
-// 	if self.M != 0 {
-// 		FPID := hashing.MHash(args.Filename, self.M)
-// 		PIDPtr = spec.GetSuccPID(FPID, &self)
+// AppendEntries (client)
+// Invoked by leader to replicate log entries (§5.3); also used as heartbeat (§5.2).
+// TODO (02/27 @ 11:27): only does heartbeats for now
+func CallAppendEntries(PID int, args *spec.AppendEntriesArgs, wg *sync.WaitGroup) spec.Result {
+	defer wg.Done()
+	log.SetPrefix(log.Prefix() + "CallAppendEntries(): ")
+	defer log.SetPrefix(config.C.Prefix + fmt.Sprintf(" [PID=%d]", self.PID) + " - ")
+	client := connect(PID)
+	defer client.Close()
 
-// 		// Dispatch PutAssign RPC or perform on self
-// 		if *PIDPtr != self.PID {
-// 			args.From = self.PID
-// 			putAssignC(*PIDPtr, &args)
-// 		} else {
-// 			_putAssign(&args)
-// 		}
+	var result spec.Result
+	if err := (*client).Call("Ocean.AppendEntries", *args, &result); err != nil {
+		log.Fatal(err)
+	}
+	return result
+}
+
+func (f *Ocean) AppendEntries(args spec.Raft, result *spec.Result) error {
+	log.SetPrefix(log.Prefix() + "AppendEntries(): ")
+	defer log.SetPrefix(config.C.Prefix + fmt.Sprintf(" [PID=%d]", self.PID) + " - ")
+	// TODO (02/27 @ 11:27): implement
+	log.Println("Received")
+	return nil
+}
+
+// func putAssignC(PID int, args *spec.PutArgs) {
+// 	log.SetPrefix(log.Prefix() + "putAssignC(): ")
+// 	defer log.SetPrefix(config.C.Prefix + fmt.Sprintf(" [PID=%d]", self.PID) + " - ")
+// 	client := connect(PID)
+// 	defer client.Close()
+
+// 	var replicas []int
+// 	if err := (*client).Call("Filesystem.PutAssign", *args, &replicas); err != nil {
+// 		log.Fatal(err)
 // 	}
-// 	return nil
 // }
 
 // Connect to some RPC server and return a pointer to the client
+// Retry some number of times if connection fails
 func connect(PID int) *rpc.Client {
 	node, ok := self.MemberMap[PID]
+	var client *rpc.Client
+	var err error
 	if !ok {
 		log.Fatalf("[PID=%d] member not found.", PID)
 	}
-	client, err := rpc.DialHTTP("tcp", (*node).IP+":"+config.C.RPCPort)
-	if err != nil {
-		log.Fatal("put() dialing:", err)
+	for i := 0; i < config.C.RPCMaxRetries; i++ {
+		client, err = rpc.DialHTTP("tcp", (*node).IP+":"+config.C.RPCPort)
+		if err != nil {
+			log.Println("put() dialing:", err)
+			time.Sleep(time.Second * time.Duration(config.C.RPCRetryInterval))
+		} else {
+			break
+		}
 	}
-
 	return client
 }
