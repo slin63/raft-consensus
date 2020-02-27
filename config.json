@@ -1,0 +1,7 @@
+{
+    "Introducer": "raft-introducer",
+    "ElectTimeoutMin": 150,
+    "ElectTimeoutMax": 300,
+    "Prefix": "[RAFT]",
+    "Logfile": "raft.log"
+}

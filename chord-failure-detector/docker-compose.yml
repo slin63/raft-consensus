@@ -1,0 +1,16 @@
+version: '3'
+
+services:
+  introducer:
+    container_name: introducer
+    environment:
+      - INTRODUCER=1
+    ports:
+      - "6000:6000"
+      - "6001:6001"
+    build: .
+
+  worker:
+    depends_on:
+      - "introducer"
+    build: .

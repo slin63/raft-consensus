@@ -1,0 +1,3 @@
+[submodule "chord-failure-detector"]
+	path = chord-failure-detector
+	url = https://github.com/slin63/chord-failure-detector
