@@ -34,8 +34,6 @@ func serveOceanRPC() {
 // TODO (02/27 @ 11:27): only does heartbeats for now
 func CallAppendEntries(PID int, args *spec.AppendEntriesArgs, wg *sync.WaitGroup) spec.Result {
 	defer wg.Done()
-	log.SetPrefix(log.Prefix() + "CallAppendEntries(): ")
-	defer log.SetPrefix(config.C.Prefix + fmt.Sprintf(" [PID=%d]", self.PID) + " - ")
 	client := connect(PID)
 	defer client.Close()
 
@@ -46,7 +44,7 @@ func CallAppendEntries(PID int, args *spec.AppendEntriesArgs, wg *sync.WaitGroup
 	return result
 }
 
-func (f *Ocean) AppendEntries(args spec.Raft, result *spec.Result) error {
+func (f *Ocean) AppendEntries(args spec.AppendEntriesArgs, result *spec.Result) error {
 	log.SetPrefix(log.Prefix() + "AppendEntries(): ")
 	defer log.SetPrefix(config.C.Prefix + fmt.Sprintf(" [PID=%d]", self.PID) + " - ")
 	// TODO (02/27 @ 11:27): implement
