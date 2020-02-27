@@ -3,5 +3,6 @@
     "ElectTimeoutMin": 150,
     "ElectTimeoutMax": 300,
     "Prefix": "[RAFT]",
-    "Logfile": "raft.log"
+    "Logfile": "raft.log",
+    "RPCPort": "6003"
 }

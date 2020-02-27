@@ -33,9 +33,30 @@ type Self struct {
 	SuspicionMap SuspicionMapT
 }
 
-// TODO (02/27 @ 11:27): fill this out
 type Raft struct {
-	M int
+	// Latest term server has seen (initialized to 0 on first boot, increases monotonically)
+	CurrentTerm int
+
+	// candidateId that received vote in current term
+	VotedFor int
+
+	// log entries; each entry contains command for state machine,
+	// and term when entry was received by leader (first index is 1)
+	Log []string
+
+	// index of highest log entry known to be committed
+	CommitIndex int
+
+	// index of highest log entry applied to state machine
+	LastApplied int
+
+	// for each server, index of the next log entry to send to
+	// that server (initialized to leader last log index + 1)
+	NextIndex int
+
+	// for each server, index of highest log entry known to be
+	// replicated on server (initialized to 0, increases monotonically)
+	MatchIndex int
 }
 
 // // DFS RPCs
@@ -47,8 +68,6 @@ type Raft struct {
 // 	// Server data
 // 	From int
 // }
-
-const FilesystemRPCPort = "6003"
 
 // Membership layer RPC information
 const MemberRPCPort = "6002"

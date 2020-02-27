@@ -12,7 +12,7 @@ import (
 )
 
 // Raft state
-var raft spec.Raft
+var raft *spec.Raft
 
 // Membership layer state
 var self spec.Self
@@ -20,6 +20,9 @@ var self spec.Self
 var block = make(chan int, 1)
 
 func Live(leader bool) {
+	// Create our raft instance
+	raft = &spec.Raft{}
+
 	// Initialize logging to file
 	f, err := os.OpenFile(config.C.Logfile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
