@@ -2,6 +2,7 @@
 package spec
 
 import (
+	"fmt"
 	"math/rand"
 
 	"../config"
@@ -57,4 +58,12 @@ type AppendEntriesArgs struct {
 
 func ElectTimeout() int64 {
 	return int64(rand.Intn(config.C.ElectTimeoutMax-config.C.ElectTimeoutMin) + config.C.ElectTimeoutMin)
+}
+
+func (r *Raft) AppendEntry(msg string) *[]string {
+	(*r).Log = append(
+		(*r).Log,
+		fmt.Sprintf("%d,%s", (*r).CurrentTerm, msg),
+	)
+	return &(*r).Log
 }

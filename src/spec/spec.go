@@ -10,6 +10,7 @@ import (
 
 // Concurrency primitives
 var SelfRWMutex sync.RWMutex
+var RaftRWMutex sync.RWMutex
 
 // Membership RPCs
 type MemberNode struct {

@@ -54,8 +54,14 @@ func (f *Ocean) AppendEntries(args spec.AppendEntriesArgs, result *spec.Result) 
 }
 
 // Receive entries from a client to be added to our log
+// It is up to our downstream client to to determine whether
+// or not it's a valid entry
 func (f *Ocean) PutEntry(entry string, result *spec.Result) error {
+	spec.RaftRWMutex.Lock()
+	defer spec.RaftRWMutex.Unlock()
 	log.Printf("PutEntry(): %s", entry)
+	updated := raft.AppendEntry(entry)
+	log.Println(*updated)
 	*result = spec.Result{raft.CurrentTerm, true}
 	return nil
 }
