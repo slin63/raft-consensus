@@ -3,7 +3,10 @@ package spec
 
 import (
 	"fmt"
+	"log"
 	"math/rand"
+	"strconv"
+	"sync"
 
 	"../config"
 )
@@ -34,6 +37,8 @@ type Raft struct {
 	MatchIndex int
 
 	ElectTimeout int64
+
+	Wg *sync.WaitGroup
 }
 
 type Result struct {
@@ -60,10 +65,14 @@ func ElectTimeout() int64 {
 	return int64(rand.Intn(config.C.ElectTimeoutMax-config.C.ElectTimeoutMin) + config.C.ElectTimeoutMin)
 }
 
-func (r *Raft) AppendEntry(msg string) *[]string {
-	(*r).Log = append(
-		(*r).Log,
-		fmt.Sprintf("%d,%s", (*r).CurrentTerm, msg),
-	)
-	return &(*r).Log
+func (r *Raft) AppendEntry(msg string) (int, int, *[]string) {
+	// Index of log entry immediately preceding new ones
+	prevLogIndex := len((*r).Log) - 1
+	prevLogTerm, err := strconv.Atoi(string((*r).Log[prevLogIndex][0]))
+	if err != nil {
+		log.Printf("[ERROR] AppendEntry(): ", err)
+	}
+	entries := &([]string{msg})
+	(*r).Log = append((*r).Log, fmt.Sprintf("%d,%s", (*r).CurrentTerm, msg))
+	return prevLogIndex, prevLogTerm, entries
 }

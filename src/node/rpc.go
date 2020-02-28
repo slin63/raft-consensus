@@ -47,7 +47,11 @@ func (f *Ocean) AppendEntries(args spec.AppendEntriesArgs, result *spec.Result) 
 	// If Entries is empty, this is a heartbeat.
 	if len(args.Entries) == 0 {
 		heartbeats <- timeMs()
+		return nil
 	}
+
+	log.Printf("[<-PUTENTRY]: [PID=%d]", self.PID)
+
 	// TODO (02/27 @ 11:27): implement
 	config.LogIf("[<-HEARTBEAT]", config.C.LogHeartbeats)
 	return nil
@@ -56,27 +60,40 @@ func (f *Ocean) AppendEntries(args spec.AppendEntriesArgs, result *spec.Result) 
 // Receive entries from a client to be added to our log
 // It is up to our downstream client to to determine whether
 // or not it's a valid entry
+// The leader appends the command to its log as a new entry,
+// then issues AppendEntries RPCs in parallel to each of the
+// other servers to replicate the entry.
 func (f *Ocean) PutEntry(entry string, result *spec.Result) error {
 	spec.RaftRWMutex.Lock()
-	defer spec.RaftRWMutex.Unlock()
 	log.Printf("PutEntry(): %s", entry)
-	updated := raft.AppendEntry(entry)
-	log.Println(*updated)
+
+	// Add new entry to own log
+	prevLogIndex, prevLogTerm, entries := raft.AppendEntry(entry)
+
+	// Dispatch AppendEntries to follower nodes
+	spec.SelfRWMutex.RLock()
+	args := &spec.AppendEntriesArgs{
+		Term:         raft.CurrentTerm,
+		LeaderId:     self.PID,
+		PrevLogIndex: prevLogIndex,
+		PrevLogTerm:  prevLogTerm,
+		Entries:      *entries,
+		LeaderCommit: raft.CommitIndex
+	}
+	log.Println("PutEntry(): ", args)
+	for PID := range self.MemberMap {
+		if PID != self.PID {
+			raft.Wg.Add(1)
+			go CallAppendEntries(PID, args, raft.Wg)
+			log.Printf("[PUTENTRY->]: [PID=%d]", PID)
+		}
+	}
+	raft.Wg.Wait()
+	spec.SelfRWMutex.RUnlock()
+	spec.RaftRWMutex.Unlock()
 	*result = spec.Result{raft.CurrentTerm, true}
 	return nil
 }
-
-// func putAssignC(PID int, args *spec.PutArgs) {
-// 	log.SetPrefix(log.Prefix() + "putAssignC(): ")
-// 	defer log.SetPrefix(config.C.Prefix + fmt.Sprintf(" [PID=%d]", self.PID) + " - ")
-// 	client := connect(PID)
-// 	defer client.Close()
-
-// 	var replicas []int
-// 	if err := (*client).Call("Filesystem.PutAssign", *args, &replicas); err != nil {
-// 		log.Fatal(err)
-// 	}
-// }
 
 // Connect to some RPC server and return a pointer to the client
 // Retry some number of times if connection fails
@@ -88,7 +105,7 @@ func connect(PID int) *rpc.Client {
 		log.Fatalf("[PID=%d] member not found.", PID)
 	}
 	for i := 0; i < config.C.RPCMaxRetries; i++ {
-		client, err = rpc.DialHTTP("tcp", (*node).IP+":"+config.C.RPCPort)
+		client, err = rpc.DialHTTP("tcp", node.IP+":"+config.C.RPCPort)
 		if err != nil {
 			log.Println("put() dialing:", err)
 			time.Sleep(time.Second * time.Duration(config.C.RPCRetryInterval))

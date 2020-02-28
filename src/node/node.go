@@ -28,9 +28,10 @@ func Live(isLeader bool) {
 	// Create our raft instance
 	leader = isLeader
 	raft = &spec.Raft{
-		Log:          []string{"term,entry"},
+		Log:          []string{"0"},
 		ElectTimeout: spec.ElectTimeout(),
 		NextIndex:    2,
+		Wg:           &sync.WaitGroup{},
 	}
 
 	// Initialize logging to file

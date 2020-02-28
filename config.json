@@ -1,6 +1,6 @@
 {
     "Introducer": "raft-introducer",
-    "ElectTimeoutMin": 500,
+    "ElectTimeoutMin": 750,
     "ElectTimeoutMax": 1000,
     "HeartbeatInterval": 250,
     "Prefix": "[RAFT]",
