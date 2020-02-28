@@ -5,8 +5,8 @@
     "HeartbeatInterval": 250,
     "Prefix": "[RAFT]",
     "Logfile": "raft.log",
-    "LogHeartbeats": true,
-    "RPCPort": "6003",
+    "LogHeartbeats": false,
+    "RPCPort": "6004",
     "RPCMaxRetries": 5,
     "RPCRetryInterval": 1
 }

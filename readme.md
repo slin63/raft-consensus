@@ -1,5 +1,8 @@
 # Raft
 
-1. `docker-compose build && docker-compose up --remove-orphans --scale worker=3`
+1. Start up server cluster
+  - `docker-compose build && docker-compose up --remove-orphans --scale worker=3`
+2. Send whatever commands you want with
+  - `CONFIG=$(pwd)/config.json LEADER=0 CLIENT=1 go run ./src`
 3. Be confused
 4. Rainbows!

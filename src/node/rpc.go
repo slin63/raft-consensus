@@ -53,6 +53,13 @@ func (f *Ocean) AppendEntries(args spec.AppendEntriesArgs, result *spec.Result) 
 	return nil
 }
 
+// Receive entries from a client to be added to our log
+func (f *Ocean) PutEntry(entry string, result *spec.Result) error {
+	log.Printf("PutEntry(): %s", entry)
+	*result = spec.Result{raft.CurrentTerm, true}
+	return nil
+}
+
 // func putAssignC(PID int, args *spec.PutArgs) {
 // 	log.SetPrefix(log.Prefix() + "putAssignC(): ")
 // 	defer log.SetPrefix(config.C.Prefix + fmt.Sprintf(" [PID=%d]", self.PID) + " - ")

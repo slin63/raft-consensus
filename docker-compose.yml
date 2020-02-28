@@ -9,7 +9,7 @@ services:
       - LEADER=1
     ports:
       - "6002:6002"
-      - "6003:6003"
+      - "6004:6004"
     build: .
 
   worker:
