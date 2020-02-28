@@ -18,6 +18,7 @@ type configParam struct {
 	// Logging
 	Prefix  string
 	Logfile string
+	LogHeartbeats bool
 
 	// Networking
 	RPCPort          string

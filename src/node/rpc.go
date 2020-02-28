@@ -2,7 +2,6 @@
 package node
 
 import (
-	"fmt"
 	"log"
 	"net"
 	"net/http"
@@ -45,10 +44,12 @@ func CallAppendEntries(PID int, args *spec.AppendEntriesArgs, wg *sync.WaitGroup
 }
 
 func (f *Ocean) AppendEntries(args spec.AppendEntriesArgs, result *spec.Result) error {
-	log.SetPrefix(log.Prefix() + "AppendEntries(): ")
-	defer log.SetPrefix(config.C.Prefix + fmt.Sprintf(" [PID=%d]", self.PID) + " - ")
+	// If Entries is empty, this is a heartbeat.
+	if len(args.Entries) == 0 {
+		heartbeats <- timeMs()
+	}
 	// TODO (02/27 @ 11:27): implement
-	log.Println("Received")
+	config.LogIf("[<-HEARTBEAT]", config.C.LogHeartbeats)
 	return nil
 }
 

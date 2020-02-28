@@ -1,4 +1,11 @@
+// Raft state and operations
 package spec
+
+import (
+	"math/rand"
+
+	"../config"
+)
 
 type Raft struct {
 	// Latest term server has seen (initialized to 0 on first boot, increases monotonically)
@@ -24,6 +31,8 @@ type Raft struct {
 	// for each server, index of highest log entry known to be
 	// replicated on server (initialized to 0, increases monotonically)
 	MatchIndex int
+
+	ElectTimeout int64
 }
 
 type Result struct {
@@ -44,4 +53,8 @@ type AppendEntriesArgs struct {
 
 	Entries      []string
 	LeaderCommit int
+}
+
+func ElectTimeout() int64 {
+	return int64(rand.Intn(config.C.ElectTimeoutMax-config.C.ElectTimeoutMin) + config.C.ElectTimeoutMin)
 }

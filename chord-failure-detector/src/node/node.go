@@ -240,7 +240,7 @@ func listen() {
 
 			leaving, ok := memberMap[leavingPID]
 			if !ok {
-				log.Fatalf("[LEAVE] PID=%s not in memberMap", leavingPID)
+				log.Fatalf("[LEAVE] PID=%d not in memberMap", leavingPID)
 			}
 
 			// Add to suspicionMap so that none-linked nodes will eventually hear about this.

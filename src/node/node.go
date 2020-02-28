@@ -21,9 +21,13 @@ var self spec.Self
 
 var block = make(chan int, 1)
 
-func Live(leader bool) {
+// A channel full of unix timestamps corresponding to last heartbeats
+var heartbeats = make(chan int64, 1)
+
+func Live(isLeader bool) {
 	// Create our raft instance
-	raft = &spec.Raft{}
+	raft = &spec.Raft{ElectTimeout: spec.ElectTimeout()}
+	leader = isLeader
 
 	// Initialize logging to file
 	f, err := os.OpenFile(config.C.Logfile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
@@ -39,31 +43,45 @@ func Live(leader bool) {
 
 	go serveOceanRPC()
 	go subscribeMembership()
+	go heartbeat()
 
-	// Code for heart beating
-	var wgHeartbeat sync.WaitGroup
-	for {
-		if leader {
-			heartbeat(raft, &wgHeartbeat)
-		}
-		time.Sleep(time.Duration(config.C.HeartbeatInterval) * time.Millisecond)
-	}
-	// go listenForLeave()
 	<-block
 }
 
-// CallAppendEntries on every other node
-func heartbeat(raft *spec.Raft, wg *sync.WaitGroup) {
-	spec.SelfRWMutex.RLock()
-	for PID := range self.MemberMap {
-		if PID != self.PID {
-			wg.Add(1)
-			go CallAppendEntries(PID, &spec.AppendEntriesArgs{}, wg)
-			log.Printf("[HEARTBEAT]: [PID=%d]", PID)
+// Leaders beat their hearts
+// Followers listen to heartbeats and initiate elections after enough time is passed
+func heartbeat() {
+	var wg sync.WaitGroup
+	var last int64
+
+	for {
+		if leader {
+			// Send empty append entries to every member as goroutines
+			spec.SelfRWMutex.RLock()
+			for PID := range self.MemberMap {
+				if PID != self.PID {
+					wg.Add(1)
+					go CallAppendEntries(PID, &spec.AppendEntriesArgs{}, &wg)
+					config.LogIf(
+						fmt.Sprintf("[HEARTBEAT->]: [PID=%d]", PID),
+						config.C.LogHeartbeats,
+					)
+				}
+			}
+			spec.SelfRWMutex.RUnlock()
+
+			// Wait for those routines to complete
+			wg.Wait()
+			time.Sleep(time.Duration(config.C.HeartbeatInterval) * time.Millisecond)
+		} else {
+			if len(heartbeats) > 0 {
+				last = <-heartbeats
+			}
+			if last != 0 && timeMs()-last > raft.ElectTimeout {
+				log.Fatalf("[ELECTTIMEOUT]")
+			}
 		}
 	}
-	spec.SelfRWMutex.RUnlock()
-	wg.Wait()
 }
 
 // Periodically poll for membership information
