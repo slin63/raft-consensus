@@ -26,8 +26,12 @@ var heartbeats = make(chan int64, 1)
 
 func Live(isLeader bool) {
 	// Create our raft instance
-	raft = &spec.Raft{ElectTimeout: spec.ElectTimeout()}
 	leader = isLeader
+	raft = &spec.Raft{
+		Log:          []string{"term,entry"},
+		ElectTimeout: spec.ElectTimeout(),
+		NextIndex:    2,
+	}
 
 	// Initialize logging to file
 	f, err := os.OpenFile(config.C.Logfile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
