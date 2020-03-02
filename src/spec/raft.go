@@ -6,6 +6,7 @@ import (
 	"log"
 	"math/rand"
 	"strconv"
+	"strings"
 	"sync"
 
 	"../config"
@@ -95,7 +96,18 @@ func (r *Raft) AppendEntry(msg string) (int, int, *[]string) {
 func (r *Raft) GetAppendEntriesArgs(self *Self) *AppendEntriesArgs {
 	return &AppendEntriesArgs{
 		Term:         r.CurrentTerm,
+		PrevLogIndex: len(r.Log) - 1,
+		PrevLogTerm:  GetTerm(&r.Log[len(r.Log)-1]),
 		LeaderId:     self.PID,
 		LeaderCommit: r.CommitIndex,
 	}
+}
+
+func GetTerm(entry *string) int {
+	s := strings.Split(*entry, ",")
+	term, err := strconv.Atoi(s[0])
+	if err != nil {
+		log.Printf("GetTerm(): %v", err)
+	}
+	return term
 }

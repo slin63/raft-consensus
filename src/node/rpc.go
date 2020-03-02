@@ -56,11 +56,6 @@ func CallAppendEntries(PID int, args *spec.AppendEntriesArgs, wg *sync.WaitGroup
 
 // TODO (03/02 @ 10:18): write tests for this
 func (f *Ocean) AppendEntries(args spec.AppendEntriesArgs, result *spec.Result) error {
-	// If Entries is empty, this is a heartbeat.
-	if len(args.Entries) == 0 {
-		heartbeats <- timeMs()
-		config.LogIf("[<-HEARTBEAT]", config.C.LogHeartbeats)
-	}
 	spec.RaftRWMutex.Lock()
 	defer spec.RaftRWMutex.Unlock()
 
@@ -85,12 +80,12 @@ func (f *Ocean) AppendEntries(args spec.AppendEntriesArgs, result *spec.Result) 
 	}
 
 	// (2) Fail if entry for previous term is inconsistent
-	if GetTerm(&raft.Log[args.PrevLogIndex]) != args.PrevLogTerm {
+	if spec.GetTerm(&raft.Log[args.PrevLogIndex]) != args.PrevLogTerm {
 		config.LogIf(
 			fmt.Sprintf(
 				"[PUTENTRY] (2) Log terms at index %d didn't match [(us) %d != (them) %d]",
 				args.PrevLogIndex,
-				GetTerm(&raft.Log[args.PrevLogIndex]),
+				spec.GetTerm(&raft.Log[args.PrevLogIndex]),
 				args.PrevLogTerm,
 			),
 			config.C.LogAppendEntries,
@@ -107,7 +102,7 @@ func (f *Ocean) AppendEntries(args spec.AppendEntriesArgs, result *spec.Result) 
 		newIdx := 0
 		var inconsistency int
 		for i := args.PrevLogIndex + 1; i < len(raft.Log); i++ {
-			if GetTerm(&raft.Log[i]) != GetTerm(&args.Entries[newIdx]) {
+			if spec.GetTerm(&raft.Log[i]) != spec.GetTerm(&args.Entries[newIdx]) {
 				inconsistency = i
 				break
 			}
@@ -136,7 +131,14 @@ func (f *Ocean) AppendEntries(args spec.AppendEntriesArgs, result *spec.Result) 
 	}
 
 	result.Success = true
-	log.Printf("[<-PUTENTRY]: [PID=%d] [RESULT=%v] [LOGS=%v]", self.PID, *result, raft.Log)
+
+	// If Entries is empty, this is a heartbeat.
+	if len(args.Entries) == 0 {
+		heartbeats <- timeMs()
+		config.LogIf("[<-HEARTBEAT]", config.C.LogHeartbeats)
+	} else {
+		log.Printf("[<-PUTENTRY]: [PID=%d] [RESULT=%v] [LOGS=%v]", self.PID, *result, raft.Log)
+	}
 
 	return nil
 }
