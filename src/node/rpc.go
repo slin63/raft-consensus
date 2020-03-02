@@ -60,8 +60,6 @@ func (f *Ocean) AppendEntries(args spec.AppendEntriesArgs, result *spec.Result) 
 	if len(args.Entries) == 0 {
 		heartbeats <- timeMs()
 		config.LogIf("[<-HEARTBEAT]", config.C.LogHeartbeats)
-
-		return nil
 	}
 	spec.RaftRWMutex.Lock()
 	defer spec.RaftRWMutex.Unlock()
@@ -158,14 +156,11 @@ func (f *Ocean) PutEntry(entry string, result *spec.Result) error {
 
 	// Dispatch AppendEntries to follower nodes
 	spec.SelfRWMutex.RLock()
-	args := &spec.AppendEntriesArgs{
-		Term:         raft.CurrentTerm,
-		LeaderId:     self.PID,
-		PrevLogIndex: prevLogIndex,
-		PrevLogTerm:  prevLogTerm,
-		Entries:      *entries,
-		LeaderCommit: raft.CommitIndex,
-	}
+	args := raft.GetAppendEntriesArgs(&self)
+	args.PrevLogIndex = prevLogIndex
+	args.PrevLogTerm = prevLogTerm
+	args.Entries = *entries
+
 	for PID := range self.MemberMap {
 		if PID != self.PID {
 			raft.Wg.Add(1)

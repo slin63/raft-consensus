@@ -9,15 +9,45 @@ import (
 	"../spec"
 )
 
-// Run through each of the five conditions described in the paper
 var oc *Ocean = new(Ocean)
 
 func init() {
 	config.C.LogAppendEntries = false
+	heartbeats = make(chan int64, 10)
+
 }
 
+// See that heartbeats are working
+func TestAppendEntriesHeartbeat(t *testing.T) {
+	raft = getRaft()
+	self = spec.Self{PID: 1}
+	argsInit := raft.GetAppendEntriesArgs(&self)
+	result := getResult()
+
+	oc.AppendEntries(*argsInit, result)
+	if !result.Success {
+		t.Fatalf("Failed: Failed when should have succeeded")
+	}
+}
+
+// See that heartbeats fail on a term mismatch
+func TestAppendEntriesHeartbeat1(t *testing.T) {
+	raft = getRaft()
+	self = spec.Self{PID: 1}
+	argsInit := raft.GetAppendEntriesArgs(&self)
+	result := getResult()
+	argsInit.Term = 555
+
+	oc.AppendEntries(*argsInit, result)
+	if result.Error != MISMATCHTERM || result.Success {
+		t.Fatalf("Failed: (1) Fail if terms don't match")
+	}
+}
+
+// Run through each of the 3 conditions described in the paper
+
 // (1) Fail if terms don't match
-func TestAppendEntries1(t *testing.T) {
+func TestAppendEntriesPut1(t *testing.T) {
 	argsInit := getArgs()
 	raft = getRaft()
 	result := getResult()
@@ -30,7 +60,7 @@ func TestAppendEntries1(t *testing.T) {
 }
 
 // (2) Fail if previous entry doesn't exist
-func TestAppendEntries2A(t *testing.T) {
+func TestAppendEntriesPut2A(t *testing.T) {
 	argsInit := getArgs()
 	raft = getRaft()
 	result := getResult()
@@ -43,7 +73,7 @@ func TestAppendEntries2A(t *testing.T) {
 }
 
 // (2) Fail if entry for previous term is inconsistent
-func TestAppendEntries2B(t *testing.T) {
+func TestAppendEntriesPut2B(t *testing.T) {
 	argsInit := getArgs()
 	raft = getRaft()
 	result := getResult()
@@ -57,12 +87,13 @@ func TestAppendEntries2B(t *testing.T) {
 }
 
 // (3) Delete conflicting entries
-func TestAppendEntries3(t *testing.T) {
+func TestAppendEntriesPut3(t *testing.T) {
 	argsInit := getArgs()
 	raft = getRaft()
 	result := getResult()
 	raft.CurrentTerm = 1
 	argsInit.Term = 1
+	argsInit.LeaderCommit = 1
 	argsInit.Entries = []string{"1,test2", "1,hotdog", "1,nightmare"}
 	raft.Log = []string{"0,test", "0,test1"}
 	expected := []string{"0,test", "1,test2", "1,hotdog", "1,nightmare"}
@@ -74,6 +105,10 @@ func TestAppendEntries3(t *testing.T) {
 
 	if strings.Join(raft.Log, "") != strings.Join(expected, "") {
 		t.Fatalf("Expected %v, got %v", expected, raft.Log)
+	}
+
+	if raft.CommitIndex != argsInit.LeaderCommit {
+		t.Fatalf("Expected commit index %d, got %d", argsInit.LeaderCommit, raft.CommitIndex)
 	}
 }
 

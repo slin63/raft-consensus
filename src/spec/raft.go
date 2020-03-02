@@ -91,3 +91,11 @@ func (r *Raft) AppendEntry(msg string) (int, int, *[]string) {
 	(*r).Log = append((*r).Log, fmt.Sprintf("%d,%s", (*r).CurrentTerm, msg))
 	return prevLogIndex, prevLogTerm, entries
 }
+
+func (r *Raft) GetAppendEntriesArgs(self *Self) *AppendEntriesArgs {
+	return &AppendEntriesArgs{
+		Term:         r.CurrentTerm,
+		LeaderId:     self.PID,
+		LeaderCommit: r.CommitIndex,
+	}
+}

@@ -67,7 +67,7 @@ func heartbeat() {
 			for PID := range self.MemberMap {
 				if PID != self.PID {
 					wg.Add(1)
-					go CallAppendEntries(PID, &spec.AppendEntriesArgs{}, &wg)
+					go CallAppendEntries(PID, raft.GetAppendEntriesArgs(&self), &wg)
 					config.LogIf(
 						fmt.Sprintf("[HEARTBEAT->]: [PID=%d]", PID),
 						config.C.LogHeartbeats,
