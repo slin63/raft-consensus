@@ -18,6 +18,15 @@ import (
 // Because rafts float in the ocean
 type Ocean int
 
+// AppendEntries Error Enums
+const (
+	NONE = iota
+	MISMATCHTERM
+	MISMATCHLOGTERM
+	MISSINGLOGENTRY
+	CONFLICTINGENTRY
+)
+
 func serveOceanRPC() {
 	oc := new(Ocean)
 	rpc.Register(oc)
@@ -59,23 +68,40 @@ func (f *Ocean) AppendEntries(args spec.AppendEntriesArgs, result *spec.Result) 
 
 	// (1) Fail if terms don't match
 	if args.Term > raft.CurrentTerm {
-		*result = spec.Result{raft.CurrentTerm, false}
+		*result = spec.Result{raft.CurrentTerm, false, MISMATCHTERM}
 		config.LogIf(
-			fmt.Sprintf("[PUTENTRY] (1) Terms didn't match (us) %d != (them) %d", args.Term, raft.CurrentTerm),
+			fmt.Sprintf("[PUTENTRY] (1) Terms didn't match [(us) %d != (them) %d]", args.Term, raft.CurrentTerm),
 			config.C.LogAppendEntries,
 		)
 		return nil
 	}
 
-	// (2) Fail if entry for previous term is inconsistent OR doesn't exist
-	if args.PrevLogIndex > len(raft.Log)-1 || string(raft.Log[args.PrevLogIndex][0]) != string(args.PrevLogTerm) {
-		*result = spec.Result{raft.CurrentTerm, false}
+	// (2) Fail if previous entry doesn't exist
+	if args.PrevLogIndex >= len(raft.Log) {
 		config.LogIf(
-			fmt.Sprintf("[PUTENTRY] (2) Log terms didn't match"),
+			fmt.Sprintf("[PUTENTRY] (2) raft.Log[PrevLogIndex=%d] does not exist. [raft.Log=%v]", args.PrevLogIndex, raft.Log),
 			config.C.LogAppendEntries,
 		)
+		*result = spec.Result{raft.CurrentTerm, false, MISSINGLOGENTRY}
 		return nil
 	}
+
+	// (2) Fail if entry for previous term is inconsistent
+	if GetTerm(&raft.Log[args.PrevLogIndex]) != args.PrevLogTerm {
+		config.LogIf(
+			fmt.Sprintf(
+				"[PUTENTRY] (2) Log terms at index %d didn't match [(us) %d != (them) %d]",
+				args.PrevLogIndex,
+				GetTerm(&raft.Log[args.PrevLogIndex]),
+				args.PrevLogTerm,
+			),
+			config.C.LogAppendEntries,
+		)
+		*result = spec.Result{raft.CurrentTerm, false, MISMATCHLOGTERM}
+		return nil
+	}
+
+	*result = spec.Result{raft.CurrentTerm, false, NONE}
 
 	// (3) Delete conflicting entries
 	// Check if we have conflicting entries
@@ -83,7 +109,7 @@ func (f *Ocean) AppendEntries(args spec.AppendEntriesArgs, result *spec.Result) 
 		newIdx := 0
 		var inconsistency int
 		for i := args.PrevLogIndex + 1; i < len(raft.Log); i++ {
-			if string(raft.Log[i][0]) != string(args.Entries[newIdx][0]) {
+			if GetTerm(&raft.Log[i]) != GetTerm(&args.Entries[newIdx]) {
 				inconsistency = i
 				break
 			}
@@ -96,6 +122,7 @@ func (f *Ocean) AppendEntries(args spec.AppendEntriesArgs, result *spec.Result) 
 			)
 			raft.Log = raft.Log[:inconsistency]
 		}
+		result.Error = CONFLICTINGENTRY
 	}
 
 	// (4) Append any new entries not in log
@@ -110,7 +137,7 @@ func (f *Ocean) AppendEntries(args spec.AppendEntriesArgs, result *spec.Result) 
 		)
 	}
 
-	*result = spec.Result{raft.CurrentTerm, true}
+	result.Success = true
 	log.Printf("[<-PUTENTRY]: [PID=%d] [RESULT=%v] [LOGS=%v]", self.PID, *result, raft.Log)
 
 	return nil
@@ -149,7 +176,7 @@ func (f *Ocean) PutEntry(entry string, result *spec.Result) error {
 	raft.Wg.Wait()
 	spec.SelfRWMutex.RUnlock()
 	spec.RaftRWMutex.Unlock()
-	*result = spec.Result{raft.CurrentTerm, true}
+	*result = spec.Result{raft.CurrentTerm, true, NONE}
 	return nil
 }
 

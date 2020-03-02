@@ -46,6 +46,8 @@ type Result struct {
 	Term int
 	// true if follower contained entry matching prevLogIndex and prevLogTerm
 	Success bool
+	// error code for testing
+	Error int
 }
 
 type AppendEntriesArgs struct {
