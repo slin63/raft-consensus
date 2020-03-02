@@ -88,7 +88,7 @@ func (r *Raft) AppendEntry(msg string) (int, int, *[]string) {
 	if err != nil {
 		log.Println("[ERROR] AppendEntry(): ", err)
 	}
-	entries := &([]string{msg})
+	entries := &([]string{fmt.Sprintf("%d,%s", r.CurrentTerm, msg)})
 	(*r).Log = append((*r).Log, fmt.Sprintf("%d,%s", (*r).CurrentTerm, msg))
 	return prevLogIndex, prevLogTerm, entries
 }
