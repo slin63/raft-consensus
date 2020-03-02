@@ -6,6 +6,7 @@
     "Prefix": "[RAFT]",
     "Logfile": "raft.log",
     "LogHeartbeats": false,
+    "LogAppendEntries": true,
     "RPCPort": "6004",
     "RPCMaxRetries": 5,
     "RPCRetryInterval": 1

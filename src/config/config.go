@@ -16,9 +16,10 @@ type configParam struct {
 	HeartbeatInterval int
 
 	// Logging
-	Prefix  string
-	Logfile string
-	LogHeartbeats bool
+	Prefix           string
+	Logfile          string
+	LogHeartbeats    bool
+	LogAppendEntries bool
 
 	// Networking
 	RPCPort          string

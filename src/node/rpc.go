@@ -2,7 +2,9 @@
 package node
 
 import (
+	"fmt"
 	"log"
+	"math"
 	"net"
 	"net/http"
 	"net/rpc"
@@ -43,6 +45,7 @@ func CallAppendEntries(PID int, args *spec.AppendEntriesArgs, wg *sync.WaitGroup
 	return result
 }
 
+// TODO (03/02 @ 10:18): write tests for this
 func (f *Ocean) AppendEntries(args spec.AppendEntriesArgs, result *spec.Result) error {
 	// If Entries is empty, this is a heartbeat.
 	if len(args.Entries) == 0 {
@@ -54,26 +57,61 @@ func (f *Ocean) AppendEntries(args spec.AppendEntriesArgs, result *spec.Result) 
 	spec.RaftRWMutex.Lock()
 	defer spec.RaftRWMutex.Unlock()
 
-	log.Printf("[<-PUTENTRY]: [PID=%d]", self.PID)
-
+	// (1) Fail if terms don't match
 	if args.Term > raft.CurrentTerm {
 		*result = spec.Result{raft.CurrentTerm, false}
+		config.LogIf(
+			fmt.Sprintf("[PUTENTRY] (1) Terms didn't match (us) %d != (them) %d", args.Term, raft.CurrentTerm),
+			config.C.LogAppendEntries,
+		)
 		return nil
 	}
 
-	if string(raft.Log[args.PrevLogIndex][0]) != string(args.PrevLogTerm) {
+	// (2) Fail if entry for previous term is inconsistent OR doesn't exist
+	if args.PrevLogIndex > len(raft.Log)-1 || string(raft.Log[args.PrevLogIndex][0]) != string(args.PrevLogTerm) {
 		*result = spec.Result{raft.CurrentTerm, false}
+		config.LogIf(
+			fmt.Sprintf("[PUTENTRY] (2) Log terms didn't match"),
+			config.C.LogAppendEntries,
+		)
 		return nil
 	}
 
-	// TODO (02/28 @ 10:43): finish
-	// // Delete conflicting entries
-	// // Check if we have conflicting entries
-	// if len(raft.Log) >= args.prevLogIndex {
+	// (3) Delete conflicting entries
+	// Check if we have conflicting entries
+	if len(raft.Log) >= args.PrevLogIndex {
+		newIdx := 0
+		var inconsistency int
+		for i := args.PrevLogIndex + 1; i < len(raft.Log); i++ {
+			if string(raft.Log[i][0]) != string(args.Entries[newIdx][0]) {
+				inconsistency = i
+				break
+			}
+		}
+		// Trim our logs up to the index of the term inconsistency
+		if inconsistency != 0 {
+			config.LogIf(
+				fmt.Sprintf("[PUTENTRY] (3) Inconsistency in our logs, trimming to %d from original len %d", inconsistency, len(raft.Log)),
+				config.C.LogAppendEntries,
+			)
+			raft.Log = raft.Log[:inconsistency]
+		}
+	}
 
-	// }
-	// if raft.Log[args.prevLogIndex] != args.Entries {
-	// }
+	// (4) Append any new entries not in log
+	raft.Log = append(raft.Log, args.Entries...)
+
+	// (5) Update commit index
+	if args.LeaderCommit > raft.CommitIndex {
+		raft.CommitIndex = int(math.Min(float64(args.LeaderCommit), float64(len(raft.Log)-1)))
+		config.LogIf(
+			fmt.Sprintf("[PUTENTRY] (5) New commit index = %d", raft.CommitIndex),
+			config.C.LogAppendEntries,
+		)
+	}
+
+	*result = spec.Result{raft.CurrentTerm, true}
+	log.Printf("[<-PUTENTRY]: [PID=%d] [RESULT=%v] [LOGS=%v]", self.PID, *result, raft.Log)
 
 	return nil
 }
