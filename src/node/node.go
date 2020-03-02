@@ -25,15 +25,6 @@ var block = make(chan int, 1)
 var heartbeats = make(chan int64, 1)
 
 func Live(isLeader bool) {
-	// Create our raft instance
-	leader = isLeader
-	raft = &spec.Raft{
-		Log:          []string{"0"},
-		ElectTimeout: spec.ElectTimeout(),
-		NextIndex:    2,
-		Wg:           &sync.WaitGroup{},
-	}
-
 	// Initialize logging to file
 	f, err := os.OpenFile(config.C.Logfile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
@@ -44,6 +35,16 @@ func Live(isLeader bool) {
 	// Get initial membership info
 	spec.GetSelf(&self)
 	log.SetPrefix(config.C.Prefix + fmt.Sprintf(" [PID=%d]", self.PID) + " - ")
+
+	// Create our raft instance
+	leader = isLeader
+	raft = &spec.Raft{
+		Log:          []string{"0"},
+		ElectTimeout: spec.ElectTimeout(),
+		Wg:           &sync.WaitGroup{},
+	}
+	raft.Init(&self)
+
 	spec.ReportOnline()
 
 	go serveOceanRPC()

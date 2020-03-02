@@ -28,13 +28,13 @@ type Raft struct {
 	// index of highest log entry applied to state machine
 	LastApplied int
 
-	// for each server, index of the next log entry to send to
+	// pid:index, for each server, index of the next log entry to send to
 	// that server (initialized to leader last log index + 1)
-	NextIndex int
+	NextIndex map[int]int
 
-	// for each server, index of highest log entry known to be
+	// pid:index, for each server, index of highest log entry known to be
 	// replicated on server (initialized to 0, increases monotonically)
-	MatchIndex int
+	MatchIndex map[int]int
 
 	ElectTimeout int64
 
@@ -65,12 +65,25 @@ func ElectTimeout() int64 {
 	return int64(rand.Intn(config.C.ElectTimeoutMax-config.C.ElectTimeoutMin) + config.C.ElectTimeoutMin)
 }
 
+func (r *Raft) Init(self *Self) {
+	RaftRWMutex.Lock()
+	defer RaftRWMutex.Unlock()
+	SelfRWMutex.RLock()
+	defer SelfRWMutex.RUnlock()
+	r.NextIndex = make(map[int]int)
+	r.MatchIndex = make(map[int]int)
+	for PID := range self.MemberMap {
+		r.NextIndex[PID] = r.CommitIndex + 1
+		r.MatchIndex[PID] = 0
+	}
+}
+
 func (r *Raft) AppendEntry(msg string) (int, int, *[]string) {
 	// Index of log entry immediately preceding new ones
 	prevLogIndex := len((*r).Log) - 1
 	prevLogTerm, err := strconv.Atoi(string((*r).Log[prevLogIndex][0]))
 	if err != nil {
-		log.Printf("[ERROR] AppendEntry(): ", err)
+		log.Println("[ERROR] AppendEntry(): ", err)
 	}
 	entries := &([]string{msg})
 	(*r).Log = append((*r).Log, fmt.Sprintf("%d,%s", (*r).CurrentTerm, msg))

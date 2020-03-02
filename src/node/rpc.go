@@ -47,13 +47,34 @@ func (f *Ocean) AppendEntries(args spec.AppendEntriesArgs, result *spec.Result) 
 	// If Entries is empty, this is a heartbeat.
 	if len(args.Entries) == 0 {
 		heartbeats <- timeMs()
+		config.LogIf("[<-HEARTBEAT]", config.C.LogHeartbeats)
+
 		return nil
 	}
+	spec.RaftRWMutex.Lock()
+	defer spec.RaftRWMutex.Lock()
 
 	log.Printf("[<-PUTENTRY]: [PID=%d]", self.PID)
 
-	// TODO (02/27 @ 11:27): implement
-	config.LogIf("[<-HEARTBEAT]", config.C.LogHeartbeats)
+	if args.Term > raft.CurrentTerm {
+		*result = spec.Result{raft.CurrentTerm, false}
+		return nil
+	}
+
+	if string(raft.Log[args.PrevLogIndex][0]) != string(args.PrevLogTerm) {
+		*result = spec.Result{raft.CurrentTerm, false}
+		return nil
+	}
+
+	// TODO (02/28 @ 10:43): finish
+	// // Delete conflicting entries
+	// // Check if we have conflicting entries
+	// if len(raft.Log) >= args.prevLogIndex {
+
+	// }
+	// if raft.Log[args.prevLogIndex] != args.Entries {
+	// }
+
 	return nil
 }
 
@@ -78,9 +99,8 @@ func (f *Ocean) PutEntry(entry string, result *spec.Result) error {
 		PrevLogIndex: prevLogIndex,
 		PrevLogTerm:  prevLogTerm,
 		Entries:      *entries,
-		LeaderCommit: raft.CommitIndex
+		LeaderCommit: raft.CommitIndex,
 	}
-	log.Println("PutEntry(): ", args)
 	for PID := range self.MemberMap {
 		if PID != self.PID {
 			raft.Wg.Add(1)
