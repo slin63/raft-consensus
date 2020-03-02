@@ -52,7 +52,7 @@ func (f *Ocean) AppendEntries(args spec.AppendEntriesArgs, result *spec.Result) 
 		return nil
 	}
 	spec.RaftRWMutex.Lock()
-	defer spec.RaftRWMutex.Lock()
+	defer spec.RaftRWMutex.Unlock()
 
 	log.Printf("[<-PUTENTRY]: [PID=%d]", self.PID)
 
