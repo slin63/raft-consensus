@@ -13,7 +13,15 @@ import (
 	"../config"
 )
 
+const (
+	LEADER = iota
+	FOLLOWER
+	CANDIDATE
+)
+
 type Raft struct {
+	Role int
+
 	// Latest term server has seen (initialized to 0 on first boot, increases monotonically)
 	CurrentTerm int
 
@@ -76,24 +84,19 @@ func (r *Raft) Init(self *Self) {
 	defer SelfRWMutex.RUnlock()
 	r.NextIndex = make(map[int]int)
 	r.MatchIndex = make(map[int]int)
+	r.Role = FOLLOWER
 	for PID := range self.MemberMap {
 		r.NextIndex[PID] = r.CommitIndex + 1
 		r.MatchIndex[PID] = 0
 	}
 }
 
-func (r *Raft) AppendEntry(msg string) (int, int, *[]string) {
-	// Index of log entry immediately preceding new ones
-	prevLogIndex := len((*r).Log) - 1
-	prevLogTerm, err := strconv.Atoi(string((*r).Log[prevLogIndex][0]))
-	if err != nil {
-		log.Println("[ERROR] AppendEntry(): ", err)
-	}
-	entries := &([]string{fmt.Sprintf("%d,%s", r.CurrentTerm, msg)})
-	(*r).Log = append((*r).Log, fmt.Sprintf("%d,%s", (*r).CurrentTerm, msg))
-	return prevLogIndex, prevLogTerm, entries
+func (r *Raft) AppendEntry(msg string) {
+	r.Log = append(r.Log, fmt.Sprintf("%d,%s", r.CurrentTerm, msg))
 }
 
+// Return an AppendEntriesArgs with PrevLogIndex/Term set to
+// point to the current top of the log
 func (r *Raft) GetAppendEntriesArgs(self *Self) *AppendEntriesArgs {
 	return &AppendEntriesArgs{
 		Term:         r.CurrentTerm,

@@ -46,11 +46,14 @@ func Live(isLeader bool) {
 	// Create our raft instance
 	leader = isLeader
 	raft = &spec.Raft{
-		Log:          []string{"0"},
+		Log:          []string{"0,NULL"},
 		ElectTimeout: spec.ElectTimeout(),
 		Wg:           &sync.WaitGroup{},
 	}
 	raft.Init(&self)
+	if leader {
+		raft.Role = spec.LEADER
+	}
 
 	spec.ReportOnline()
 

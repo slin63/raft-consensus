@@ -8,7 +8,6 @@ import (
 	"net"
 	"net/http"
 	"net/rpc"
-	"sync"
 	"time"
 
 	"../config"
@@ -52,7 +51,6 @@ func CallAppendEntries(PID int, args *spec.AppendEntriesArgs) *spec.Result {
 	return &result
 }
 
-// TODO (03/02 @ 10:18): write tests for this
 func (f *Ocean) AppendEntries(args spec.AppendEntriesArgs, result *spec.Result) error {
 	spec.RaftRWMutex.Lock()
 	defer spec.RaftRWMutex.Unlock()
@@ -148,31 +146,68 @@ func (f *Ocean) AppendEntries(args spec.AppendEntriesArgs, result *spec.Result) 
 // then issues AppendEntries RPCs in parallel to each of the
 // other servers to replicate the entry.
 func (f *Ocean) PutEntry(entry string, result *spec.Result) error {
-	spec.RaftRWMutex.Lock()
 	log.Printf("PutEntry(): %s", entry)
 
 	// Add new entry to own log
-	prevLogIndex, prevLogTerm, entries := raft.AppendEntry(entry)
+	spec.RaftRWMutex.Lock()
+	raft.AppendEntry(entry)
+	spec.RaftRWMutex.Unlock()
+
+	results := make(chan *spec.Result)
 
 	// Dispatch AppendEntries to follower nodes
 	spec.SelfRWMutex.RLock()
-	args := raft.GetAppendEntriesArgs(&self)
-	args.PrevLogIndex = prevLogIndex
-	args.PrevLogTerm = prevLogTerm
-	args.Entries = *entries
-
 	for PID := range self.MemberMap {
 		if PID != self.PID {
 			raft.Wg.Add(1)
-			go CallAppendEntries(PID, args, raft.Wg)
-			log.Printf("[PUTENTRY->]: [PID=%d]", PID)
+			go appendEntriesUntilSuccess(raft, results, PID)
 		}
 	}
-	raft.Wg.Wait()
 	spec.SelfRWMutex.RUnlock()
-	spec.RaftRWMutex.Unlock()
+	// TODO (03/03 @ 11:07): set up quorum tracking
+	raft.Wg.Wait()
 	*result = spec.Result{raft.CurrentTerm, true, NONE}
 	return nil
+}
+
+func appendEntriesUntilSuccess(raft *spec.Raft, results chan<- *spec.Result, PID int) {
+	spec.RaftRWMutex.Lock()
+	defer spec.RaftRWMutex.Unlock()
+	var result *spec.Result
+	// If last log index >= nextIndex for a follower,
+	// send log entries starting at nextIndex
+	if len(raft.Log)-1 >= raft.NextIndex[PID] {
+		for {
+			// Regenerate arguments on each call, because
+			// raft state may have changed between calls
+			args := raft.GetAppendEntriesArgs(&self)
+			args.PrevLogIndex = raft.NextIndex[PID] - 1
+			args.PrevLogTerm = spec.GetTerm(&raft.Log[args.PrevLogIndex])
+			args.Entries = raft.Log[raft.NextIndex[PID]:]
+			config.LogIf(fmt.Sprintf("appendEntriesUntilSuccess() with args: %v", args), config.C.LogAppendEntries)
+			log.Println(raft.NextIndex[PID])
+			result = CallAppendEntries(PID, args)
+
+			// Success! Increment next/matchIndex as a function of our inputs
+			// Otherwise, decrement nextIndex and try again.
+			if result.Success {
+				raft.MatchIndex[PID] = args.PrevLogIndex + len(args.Entries)
+				raft.NextIndex[PID] = raft.MatchIndex[PID] + 1
+				break
+			} else {
+				// Decrement NextIndex if the failure was due to log consistency.
+				// If not, update our term and step down
+				if result.Term > raft.CurrentTerm {
+					raft.CurrentTerm = result.Term
+					raft.Role = spec.FOLLOWER
+				} else {
+					raft.NextIndex[PID] -= 1
+				}
+			}
+		}
+	}
+	results <- result
+	log.Printf("[PUTENTRY->]: [PID=%d]", PID)
 }
 
 // Connect to some RPC server and return a pointer to the client
