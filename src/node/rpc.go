@@ -41,9 +41,7 @@ func serveOceanRPC() {
 
 // AppendEntries (client)
 // Invoked by leader to replicate log entries (§5.3); also used as heartbeat (§5.2).
-// TODO (02/27 @ 11:27): only does heartbeats for now
-func CallAppendEntries(PID int, args *spec.AppendEntriesArgs, wg *sync.WaitGroup) spec.Result {
-	defer wg.Done()
+func CallAppendEntries(PID int, args *spec.AppendEntriesArgs) *spec.Result {
 	client := connect(PID)
 	defer client.Close()
 
@@ -51,7 +49,7 @@ func CallAppendEntries(PID int, args *spec.AppendEntriesArgs, wg *sync.WaitGroup
 	if err := (*client).Call("Ocean.AppendEntries", *args, &result); err != nil {
 		log.Fatal(err)
 	}
-	return result
+	return &result
 }
 
 // TODO (03/02 @ 10:18): write tests for this

@@ -25,6 +25,13 @@ var block = make(chan int, 1)
 var heartbeats = make(chan int64, 1)
 
 func Live(isLeader bool) {
+	// If you're the leader, sleep for a little bit and let everyone else get started.
+	// TODO (03/03 @ 11:07): one election is implemented, have it so that the nodes elect a leader
+	// instead of having a "default" leader
+	if isLeader {
+		time.Sleep(time.Second * 1)
+	}
+
 	// Initialize logging to file
 	f, err := os.OpenFile(config.C.Logfile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
@@ -67,11 +74,15 @@ func heartbeat() {
 			for PID := range self.MemberMap {
 				if PID != self.PID {
 					wg.Add(1)
-					go CallAppendEntries(PID, raft.GetAppendEntriesArgs(&self), &wg)
-					config.LogIf(
-						fmt.Sprintf("[HEARTBEAT->]: [PID=%d]", PID),
-						config.C.LogHeartbeats,
-					)
+					go func(PID int, wg *sync.WaitGroup) {
+						// TODO (03/03 @ 11:07): may have to replace this with appendEntriesUntilSuccess
+						CallAppendEntries(PID, raft.GetAppendEntriesArgs(&self))
+						config.LogIf(
+							fmt.Sprintf("[HEARTBEAT->]: [PID=%d]", PID),
+							config.C.LogHeartbeats,
+						)
+						wg.Done()
+					}(PID, &wg)
 				}
 			}
 			spec.SelfRWMutex.RUnlock()
