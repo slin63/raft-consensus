@@ -153,24 +153,20 @@ func (f *Ocean) PutEntry(entry string, result *spec.Result) error {
 	raft.AppendEntry(entry)
 	spec.RaftRWMutex.Unlock()
 
-	results := make(chan *spec.Result)
-
 	// Dispatch AppendEntries to follower nodes
 	spec.SelfRWMutex.RLock()
 	for PID := range self.MemberMap {
 		if PID != self.PID {
-			raft.Wg.Add(1)
-			go appendEntriesUntilSuccess(raft, results, PID)
+			go appendEntriesUntilSuccess(raft, PID)
 		}
 	}
 	spec.SelfRWMutex.RUnlock()
 	// TODO (03/03 @ 11:07): set up quorum tracking
-	raft.Wg.Wait()
 	*result = spec.Result{raft.CurrentTerm, true, NONE}
 	return nil
 }
 
-func appendEntriesUntilSuccess(raft *spec.Raft, results chan<- *spec.Result, PID int) {
+func appendEntriesUntilSuccess(raft *spec.Raft, PID int) {
 	spec.RaftRWMutex.Lock()
 	defer spec.RaftRWMutex.Unlock()
 	var result *spec.Result
@@ -185,7 +181,6 @@ func appendEntriesUntilSuccess(raft *spec.Raft, results chan<- *spec.Result, PID
 			args.PrevLogTerm = spec.GetTerm(&raft.Log[args.PrevLogIndex])
 			args.Entries = raft.Log[raft.NextIndex[PID]:]
 			config.LogIf(fmt.Sprintf("appendEntriesUntilSuccess() with args: %v", args), config.C.LogAppendEntries)
-			log.Println(raft.NextIndex[PID])
 			result = CallAppendEntries(PID, args)
 
 			// Success! Increment next/matchIndex as a function of our inputs
@@ -206,7 +201,6 @@ func appendEntriesUntilSuccess(raft *spec.Raft, results chan<- *spec.Result, PID
 			}
 		}
 	}
-	results <- result
 	log.Printf("[PUTENTRY->]: [PID=%d]", PID)
 }
 

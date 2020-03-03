@@ -29,7 +29,7 @@ func Live(isLeader bool) {
 	// TODO (03/03 @ 11:07): one election is implemented, have it so that the nodes elect a leader
 	// instead of having a "default" leader
 	if isLeader {
-		time.Sleep(time.Second * 1)
+		time.Sleep(time.Second * 2)
 	}
 
 	// Initialize logging to file
