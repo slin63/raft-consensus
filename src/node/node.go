@@ -76,7 +76,6 @@ func heartbeat() {
 			spec.SelfRWMutex.RLock()
 			for PID := range self.MemberMap {
 				if PID != self.PID {
-					wg.Add(1)
 					go func(PID int, wg *sync.WaitGroup) {
 						// TODO (03/03 @ 11:07): may have to replace this with appendEntriesUntilSuccess
 						CallAppendEntries(PID, raft.GetAppendEntriesArgs(&self))
@@ -84,7 +83,6 @@ func heartbeat() {
 							fmt.Sprintf("[HEARTBEAT->]: [PID=%d]", PID),
 							config.C.LogHeartbeats,
 						)
-						wg.Done()
 					}(PID, &wg)
 				}
 			}
