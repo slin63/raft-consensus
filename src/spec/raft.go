@@ -4,6 +4,7 @@ package spec
 import (
 	"fmt"
 	"log"
+	"math"
 	"math/rand"
 	"strconv"
 	"strings"
@@ -110,4 +111,8 @@ func GetTerm(entry *string) int {
 		log.Printf("GetTerm(): %v", err)
 	}
 	return term
+}
+
+func GetQuorum(self *Self) int {
+	return int(math.Floor(config.C.Quorum * float64(len(self.MemberMap))))
 }

@@ -3,6 +3,7 @@
     "ElectTimeoutMin": 750,
     "ElectTimeoutMax": 1000,
     "HeartbeatInterval": 250,
+    "Quorum": 0.6,
     "Prefix": "[RAFT]",
     "Logfile": "raft.log",
     "LogHeartbeats": false,

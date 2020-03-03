@@ -6,7 +6,7 @@ import (
 	"../config"
 )
 
-func TestSum(t *testing.T) {
+func TestElectTimeout(t *testing.T) {
 	for i := 0; i < 100; i++ {
 		if to := ElectTimeout(); to < int64(config.C.ElectTimeoutMin) || to > int64(config.C.ElectTimeoutMax) {
 			t.Fatalf(
@@ -17,6 +17,19 @@ func TestSum(t *testing.T) {
 			)
 		}
 	}
+}
+
+func TestGetQuorom(t *testing.T) {
+	self := Self{MemberMap: make(MemberMapT)}
+	self.MemberMap[1] = &MemberNode{}
+	self.MemberMap[2] = &MemberNode{}
+	self.MemberMap[3] = &MemberNode{}
+	self.MemberMap[4] = &MemberNode{}
+	self.MemberMap[5] = &MemberNode{}
+	if GetQuorum(&self) != 3 {
+		t.Fatalf("Expected 3 quorum members, got %d", GetQuorum(&self))
+	}
+
 }
 
 func TestInit(t *testing.T) {

@@ -14,6 +14,7 @@ type configParam struct {
 	ElectTimeoutMin   int
 	ElectTimeoutMax   int
 	HeartbeatInterval int
+	Quorum            float64
 
 	// Logging
 	Prefix           string
