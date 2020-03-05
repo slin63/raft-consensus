@@ -109,13 +109,3 @@ func subscribeMembership() {
 		time.Sleep(time.Second * spec.MemberInterval)
 	}
 }
-
-// // Detect ctrl-c signal interrupts and dispatch [LEAVE]s to monitors accordingly
-// func listenForLeave() {
-// 	c := make(chan os.Signal, 2)
-// 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-// 	go func() {
-// 		<-c
-// 		os.Exit(0)
-// 	}()
-// }

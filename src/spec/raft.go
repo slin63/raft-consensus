@@ -19,6 +19,8 @@ const (
 	CANDIDATE
 )
 
+const NOCANDIDATE = -1
+
 type Raft struct {
 	Role int
 
@@ -58,6 +60,8 @@ type Result struct {
 	Success bool
 	// error code for testing
 	Error int
+	// if the sending candidate received the vote
+	VoteGranted bool
 }
 
 type AppendEntriesArgs struct {
@@ -73,6 +77,16 @@ type AppendEntriesArgs struct {
 	LeaderCommit int
 }
 
+type RequestVoteArgs struct {
+	// Term and ID of candidate requesting vote
+	Term        int
+	CandidateId int
+
+	// Index and term of candidate's last log entry
+	LastLogIndex int
+	LastLogTerm  int
+}
+
 func ElectTimeout() int64 {
 	return int64(rand.Intn(config.C.ElectTimeoutMax-config.C.ElectTimeoutMin) + config.C.ElectTimeoutMin)
 }
@@ -85,6 +99,7 @@ func (r *Raft) Init(self *Self) {
 	r.NextIndex = make(map[int]int)
 	r.MatchIndex = make(map[int]int)
 	r.Role = FOLLOWER
+	r.VotedFor = NOCANDIDATE
 	for PID := range self.MemberMap {
 		r.NextIndex[PID] = r.CommitIndex + 1
 		r.MatchIndex[PID] = 0
@@ -93,6 +108,10 @@ func (r *Raft) Init(self *Self) {
 
 func (r *Raft) AppendEntry(msg string) {
 	r.Log = append(r.Log, fmt.Sprintf("%d,%s", r.CurrentTerm, msg))
+}
+
+func (r *Raft) GetLastEntry() *string {
+	return &(r.Log[len(r.Log)-1])
 }
 
 // Return an AppendEntriesArgs with PrevLogIndex/Term set to

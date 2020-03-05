@@ -51,54 +51,66 @@ func CallAppendEntries(PID int, args *spec.AppendEntriesArgs) *spec.Result {
 	return &result
 }
 
-func (f *Ocean) AppendEntries(args spec.AppendEntriesArgs, result *spec.Result) error {
+func (f *Ocean) AppendEntries(a spec.AppendEntriesArgs, result *spec.Result) error {
 	spec.RaftRWMutex.Lock()
 	defer spec.RaftRWMutex.Unlock()
 
 	// (1) Fail if terms don't match
-	if args.Term > raft.CurrentTerm {
-		*result = spec.Result{raft.CurrentTerm, false, MISMATCHTERM}
+	if a.Term > raft.CurrentTerm {
+		*result = spec.Result{
+			Term:    raft.CurrentTerm,
+			Success: false,
+			Error:   MISMATCHTERM,
+		}
 		config.LogIf(
-			fmt.Sprintf("[PUTENTRY] (1) Terms didn't match [(us) %d != (them) %d]", args.Term, raft.CurrentTerm),
+			fmt.Sprintf("[PUTENTRY] (1) Terms didn't match [(us) %d != (them) %d]", a.Term, raft.CurrentTerm),
 			config.C.LogAppendEntries,
 		)
 		return nil
 	}
 
 	// (2) Fail if previous entry doesn't exist
-	if args.PrevLogIndex >= len(raft.Log) {
+	if a.PrevLogIndex >= len(raft.Log) {
 		config.LogIf(
-			fmt.Sprintf("[PUTENTRY] (2) raft.Log[PrevLogIndex=%d] does not exist. [raft.Log=%v]", args.PrevLogIndex, raft.Log),
+			fmt.Sprintf("[PUTENTRY] (2) raft.Log[PrevLogIndex=%d] does not exist. [raft.Log=%v]", a.PrevLogIndex, raft.Log),
 			config.C.LogAppendEntries,
 		)
-		*result = spec.Result{raft.CurrentTerm, false, MISSINGLOGENTRY}
+		*result = spec.Result{
+			Term:    raft.CurrentTerm,
+			Success: false,
+			Error:   MISSINGLOGENTRY,
+		}
 		return nil
 	}
 
 	// (2) Fail if entry for previous term is inconsistent
-	if spec.GetTerm(&raft.Log[args.PrevLogIndex]) != args.PrevLogTerm {
+	if spec.GetTerm(&raft.Log[a.PrevLogIndex]) != a.PrevLogTerm {
 		config.LogIf(
 			fmt.Sprintf(
 				"[PUTENTRY] (2) Log terms at index %d didn't match [(us) %d != (them) %d]",
-				args.PrevLogIndex,
-				spec.GetTerm(&raft.Log[args.PrevLogIndex]),
-				args.PrevLogTerm,
+				a.PrevLogIndex,
+				spec.GetTerm(&raft.Log[a.PrevLogIndex]),
+				a.PrevLogTerm,
 			),
 			config.C.LogAppendEntries,
 		)
-		*result = spec.Result{raft.CurrentTerm, false, MISMATCHLOGTERM}
+		*result = spec.Result{
+			Term:    raft.CurrentTerm,
+			Success: false,
+			Error:   MISMATCHLOGTERM,
+		}
 		return nil
 	}
 
-	*result = spec.Result{raft.CurrentTerm, false, NONE}
+	*result = spec.Result{Term: raft.CurrentTerm, Success: false}
 
 	// (3) Delete conflicting entries
 	// Check if we have conflicting entries
-	if len(raft.Log) >= args.PrevLogIndex {
+	if len(raft.Log) >= a.PrevLogIndex {
 		newIdx := 0
 		var inconsistency int
-		for i := args.PrevLogIndex + 1; i < len(raft.Log); i++ {
-			if spec.GetTerm(&raft.Log[i]) != spec.GetTerm(&args.Entries[newIdx]) {
+		for i := a.PrevLogIndex + 1; i < len(raft.Log); i++ {
+			if spec.GetTerm(&raft.Log[i]) != spec.GetTerm(&a.Entries[newIdx]) {
 				inconsistency = i
 				break
 			}
@@ -115,11 +127,11 @@ func (f *Ocean) AppendEntries(args spec.AppendEntriesArgs, result *spec.Result) 
 	}
 
 	// (4) Append any new entries not in log
-	raft.Log = append(raft.Log, args.Entries...)
+	raft.Log = append(raft.Log, a.Entries...)
 
 	// (5) Update commit index
-	if args.LeaderCommit > raft.CommitIndex {
-		raft.CommitIndex = int(math.Min(float64(args.LeaderCommit), float64(len(raft.Log)-1)))
+	if a.LeaderCommit > raft.CommitIndex {
+		raft.CommitIndex = int(math.Min(float64(a.LeaderCommit), float64(len(raft.Log)-1)))
 		config.LogIf(
 			fmt.Sprintf("[PUTENTRY] (5) New commit index = %d", raft.CommitIndex),
 			config.C.LogAppendEntries,
@@ -129,7 +141,7 @@ func (f *Ocean) AppendEntries(args spec.AppendEntriesArgs, result *spec.Result) 
 	result.Success = true
 
 	// If Entries is empty, this is a heartbeat.
-	if len(args.Entries) == 0 {
+	if len(a.Entries) == 0 {
 		heartbeats <- timeMs()
 		config.LogIf("[<-HEARTBEAT]", config.C.LogHeartbeats)
 	} else {
@@ -138,6 +150,23 @@ func (f *Ocean) AppendEntries(args spec.AppendEntriesArgs, result *spec.Result) 
 
 	return nil
 }
+
+// func (f *Ocean) RequestVote(a spec.RequestVoteArgs, result *spec.Result) error {
+// 	// (1) S5.1 Fail if our term is greater
+// 	if raft.CurrentTerm > a.Term {
+// 		*result = spec.Result{Term: raft.CurrentTerm, VoteGranted: false}
+// 	}
+
+// // (2) S5.2, S5.4 Make sure we haven't already voted for someone else
+// if raft.VotedFor == spec.NOCANDIDATE || raft.VotedFor == a.CandidateId {
+// 	// Make sure candidate's log is at least as up-to-date as our log by
+// 	// (1) Comparing log terms and, if terms match (2) log length
+// 	if a.LastLogTerm > raft.Log
+
+// }
+
+// 	return nil
+// }
 
 // Receive entries from a client to be added to our log
 // It is up to our downstream client to to determine whether
@@ -162,7 +191,7 @@ func (f *Ocean) PutEntry(entry string, result *spec.Result) error {
 	}
 	spec.SelfRWMutex.RUnlock()
 	// TODO (03/03 @ 11:07): set up quorum tracking
-	*result = spec.Result{raft.CurrentTerm, true, NONE}
+	*result = spec.Result{Term: raft.CurrentTerm, Success: true}
 	return nil
 }
 

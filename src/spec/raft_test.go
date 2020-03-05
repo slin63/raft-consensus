@@ -65,3 +65,15 @@ func TestGetTerm(t *testing.T) {
 		}
 	}
 }
+
+func TestGetLastEntry(t *testing.T) {
+	raft := &Raft{
+		Log: []string{"0", "1", "2"},
+	}
+
+	if raft.GetLastEntry() != "2" {
+		t.Fatalf(
+			"Expected entry to be %s, but got %s", "2", raft.GetLastEntry(),
+		)
+	}
+}
