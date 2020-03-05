@@ -151,22 +151,38 @@ func (f *Ocean) AppendEntries(a spec.AppendEntriesArgs, result *spec.Result) err
 	return nil
 }
 
-// func (f *Ocean) RequestVote(a spec.RequestVoteArgs, result *spec.Result) error {
-// 	// (1) S5.1 Fail if our term is greater
-// 	if raft.CurrentTerm > a.Term {
-// 		*result = spec.Result{Term: raft.CurrentTerm, VoteGranted: false}
-// 	}
+func (f *Ocean) RequestVote(a spec.RequestVoteArgs, result *spec.Result) error {
+	// (1) S5.1 Fail if our term is greater
+	if raft.CurrentTerm > a.Term {
+		*result = spec.Result{Term: raft.CurrentTerm, VoteGranted: false}
+		return nil
+	}
 
-// // (2) S5.2, S5.4 Make sure we haven't already voted for someone else
-// if raft.VotedFor == spec.NOCANDIDATE || raft.VotedFor == a.CandidateId {
-// 	// Make sure candidate's log is at least as up-to-date as our log by
-// 	// (1) Comparing log terms and, if terms match (2) log length
-// 	if a.LastLogTerm > raft.Log
+	// (2) S5.2, S5.4 Make sure we haven't already voted for someone else
+	if raft.VotedFor != spec.NOCANDIDATE || raft.VotedFor != a.CandidateId {
+		*result = spec.Result{Term: raft.CurrentTerm, VoteGranted: false}
+		return nil
+	}
 
-// }
+	// Make sure candidate's log is at least as up-to-date as our log by
+	// (a) Comparing log terms and (b) log length
+	if a.LastLogTerm < spec.GetTerm(raft.GetLastEntry()) {
+		*result = spec.Result{Term: raft.CurrentTerm, VoteGranted: false}
+		return nil
+	} else if a.LastLogTerm == spec.GetTerm(raft.GetLastEntry()) {
+		if a.LastLogIndex < len(raft.Log) {
+			*result = spec.Result{Term: raft.CurrentTerm, VoteGranted: false}
+			return nil
+		}
+	}
 
-// 	return nil
-// }
+	// If we made it to this point, the incoming log is as up-to-date as ours
+	// and we can safely grant our vote.
+	*result = spec.Result{Term: raft.CurrentTerm, VoteGranted: true}
+
+	return nil
+
+}
 
 // Receive entries from a client to be added to our log
 // It is up to our downstream client to to determine whether
