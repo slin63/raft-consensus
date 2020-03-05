@@ -5,9 +5,9 @@ import (
 	"os"
 	"strconv"
 
-	"./client"
-	"./config"
-	"./node"
+	"github.com/slin63/raft-consensus/internal/client"
+	"github.com/slin63/raft-consensus/internal/config"
+	"github.com/slin63/raft-consensus/internal/node"
 )
 
 func main() {

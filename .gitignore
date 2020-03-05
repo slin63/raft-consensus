@@ -17,3 +17,4 @@ membership
 # vendor/
 *.log
 pkg/
+.DS_Store
