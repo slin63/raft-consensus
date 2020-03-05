@@ -77,3 +77,27 @@ func TestGetLastEntry(t *testing.T) {
 		)
 	}
 }
+
+func TestGetLastLogTerm(t *testing.T) {
+	raft := &Raft{
+		Log: []string{"0", "1", "2"},
+	}
+
+	if raft.GetLastLogTerm() != 2 {
+		t.Fatalf(
+			"Expected entry to be %d, but got %d", 2, raft.GetLastLogTerm(),
+		)
+	}
+}
+
+func TestGetLastLogIndex(t *testing.T) {
+	raft := &Raft{
+		Log: []string{"0", "1", "2"},
+	}
+
+	if raft.GetLastLogIndex() != 2 {
+		t.Fatalf(
+			"Expected entry to be %d, but got %d", 2, raft.GetLastLogIndex(),
+		)
+	}
+}

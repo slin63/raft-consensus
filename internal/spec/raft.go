@@ -136,6 +136,14 @@ func (r *Raft) ResetElectTimer() {
 	config.LogIf(fmt.Sprintf("Reset!"), config.C.LogTimers)
 }
 
+func (r *Raft) GetLastLogIndex() int {
+	return len(r.Log) - 1
+}
+
+func (r *Raft) GetLastLogTerm() int {
+	return GetTerm(r.GetLastEntry())
+}
+
 func GetTerm(entry *string) int {
 	s := strings.Split(*entry, ",")
 	term, err := strconv.Atoi(s[0])

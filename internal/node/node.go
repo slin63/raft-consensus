@@ -19,6 +19,7 @@ var leader bool
 // Membership layer state
 var self spec.Self
 
+var endElection = make(chan int, 1)
 var block = make(chan int, 1)
 
 func Live(isLeader bool) {
@@ -87,7 +88,8 @@ func heartbeat() {
 		} else {
 			select {
 			case <-raft.ElectTimer.C:
-				log.Fatalf("[ELECTTIMEOUT]")
+				log.Println("[ELECTTIMEOUT]")
+				go InitiateElection()
 			}
 		}
 	}

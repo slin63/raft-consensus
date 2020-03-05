@@ -160,16 +160,14 @@ func (f *Ocean) AppendEntries(a spec.AppendEntriesArgs, result *spec.Result) err
 }
 
 func (f *Ocean) RequestVote(a spec.RequestVoteArgs, result *spec.Result) error {
+	log.Printf("[<-ELECTION]: Received RequestVote from %d", a.CandidateId)
 	spec.RaftRWMutex.Lock()
+	defer spec.RaftRWMutex.Unlock()
 	// Step down and update term if we receive a higher term
 	if a.Term > raft.CurrentTerm {
 		raft.CurrentTerm = a.Term
 		raft.Role = spec.FOLLOWER
 	}
-	spec.RaftRWMutex.Unlock()
-
-	spec.RaftRWMutex.RLock()
-	defer spec.RaftRWMutex.RUnlock()
 
 	// (1) S5.1 Fail if our term is greater
 	if raft.CurrentTerm > a.Term {
@@ -196,7 +194,8 @@ func (f *Ocean) RequestVote(a spec.RequestVoteArgs, result *spec.Result) error {
 	}
 
 	// If we made it to this point, the incoming log is as up-to-date as ours
-	// and we can safely grant our vote.
+	// and we can safely grant our vote and reset our election timer.
+	raft.ResetElectTimer()
 	*result = spec.Result{Term: raft.CurrentTerm, VoteGranted: true}
 	return nil
 
