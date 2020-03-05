@@ -167,8 +167,6 @@ func (f *Ocean) PutEntry(entry string, result *spec.Result) error {
 }
 
 func appendEntriesUntilSuccess(raft *spec.Raft, PID int) {
-	spec.RaftRWMutex.Lock()
-	defer spec.RaftRWMutex.Unlock()
 	var result *spec.Result
 	// If last log index >= nextIndex for a follower,
 	// send log entries starting at nextIndex
@@ -176,15 +174,18 @@ func appendEntriesUntilSuccess(raft *spec.Raft, PID int) {
 		for {
 			// Regenerate arguments on each call, because
 			// raft state may have changed between calls
+			spec.RaftRWMutex.RLock()
 			args := raft.GetAppendEntriesArgs(&self)
 			args.PrevLogIndex = raft.NextIndex[PID] - 1
 			args.PrevLogTerm = spec.GetTerm(&raft.Log[args.PrevLogIndex])
 			args.Entries = raft.Log[raft.NextIndex[PID]:]
 			config.LogIf(fmt.Sprintf("appendEntriesUntilSuccess() with args: %v", args), config.C.LogAppendEntries)
+			spec.RaftRWMutex.RUnlock()
 			result = CallAppendEntries(PID, args)
 
 			// Success! Increment next/matchIndex as a function of our inputs
 			// Otherwise, decrement nextIndex and try again.
+			spec.RaftRWMutex.Lock()
 			if result.Success {
 				raft.MatchIndex[PID] = args.PrevLogIndex + len(args.Entries)
 				raft.NextIndex[PID] = raft.MatchIndex[PID] + 1
@@ -199,6 +200,7 @@ func appendEntriesUntilSuccess(raft *spec.Raft, PID int) {
 					raft.NextIndex[PID] -= 1
 				}
 			}
+			spec.RaftRWMutex.Unlock()
 		}
 	}
 	log.Printf("[PUTENTRY->]: [PID=%d]", PID)
@@ -216,7 +218,7 @@ func connect(PID int) *rpc.Client {
 	for i := 0; i < config.C.RPCMaxRetries; i++ {
 		client, err = rpc.DialHTTP("tcp", node.IP+":"+config.C.RPCPort)
 		if err != nil {
-			log.Println("put() dialing:", err)
+			log.Println("connect() dialing:", err)
 			time.Sleep(time.Second * time.Duration(config.C.RPCRetryInterval))
 		} else {
 			break
