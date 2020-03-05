@@ -57,9 +57,14 @@ func CallAppendEntries(PID int, args *spec.AppendEntriesArgs) *spec.Result {
 func (f *Ocean) AppendEntries(a spec.AppendEntriesArgs, result *spec.Result) error {
 	spec.RaftRWMutex.Lock()
 	defer spec.RaftRWMutex.Unlock()
-
-	// (1) Fail if terms don't match
+	// (0) If their term is greater, update our term and convert to follower
 	if a.Term > raft.CurrentTerm {
+		raft.CurrentTerm = a.Term
+		raft.Role = spec.FOLLOWER
+	}
+
+	// (1) Fail if our term is greater
+	if a.Term < raft.CurrentTerm {
 		*result = spec.Result{
 			Term:    raft.CurrentTerm,
 			Success: false,
@@ -155,6 +160,12 @@ func (f *Ocean) AppendEntries(a spec.AppendEntriesArgs, result *spec.Result) err
 }
 
 func (f *Ocean) RequestVote(a spec.RequestVoteArgs, result *spec.Result) error {
+	// Step down and update term if we receive a higher term
+	if a.Term > raft.CurrentTerm {
+		raft.CurrentTerm = a.Term
+		raft.Role = spec.FOLLOWER
+	}
+
 	// (1) S5.1 Fail if our term is greater
 	if raft.CurrentTerm > a.Term {
 		*result = spec.Result{Term: raft.CurrentTerm, VoteGranted: false, Error: MISMATCHTERM}

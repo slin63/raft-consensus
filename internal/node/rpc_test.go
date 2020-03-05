@@ -30,13 +30,14 @@ func TestAppendEntriesHeartbeat(t *testing.T) {
 	}
 }
 
-// See that heartbeats fail on a term mismatch
+// See that heartbeats fail if incoming term smaller than our term
 func TestAppendEntriesHeartbeat1(t *testing.T) {
 	raft = getRaft()
+	raft.CurrentTerm = 1
 	self = spec.Self{PID: 1}
 	argsInit := raft.GetAppendEntriesArgs(&self)
+	argsInit.Term = 0
 	result := getResult()
-	argsInit.Term = 555
 
 	oc.AppendEntries(*argsInit, result)
 	if result.Error != MISMATCHTERM || result.Success {
@@ -44,14 +45,29 @@ func TestAppendEntriesHeartbeat1(t *testing.T) {
 	}
 }
 
-// Run through each of the 3 conditions described in the paper
+// See that we properly step down on receiving a greater term
+func TestAppendEntriesGreaterTerm(t *testing.T) {
+	argsInit := getArgs()
+	raft = getRaft()
+	raft.Role = spec.CANDIDATE
+	raft.CurrentTerm = 1
+	result := getResult()
+	argsInit.Term = 5
 
-// (1) Fail if terms don't match
+	oc.AppendEntries(*argsInit, result)
+	if raft.CurrentTerm != argsInit.Term || raft.Role != spec.FOLLOWER {
+		t.Fatal("This code don't work")
+	}
+}
+
+// Run through each of the 3 conditions described in the paper
+// (1) Fail if incoming term smaller than our term
 func TestAppendEntriesPut1(t *testing.T) {
 	argsInit := getArgs()
 	raft = getRaft()
+	raft.CurrentTerm = 1
 	result := getResult()
-	argsInit.Term = 555
+	argsInit.Term = 0
 
 	oc.AppendEntries(*argsInit, result)
 	if result.Error != MISMATCHTERM || result.Success {
@@ -112,14 +128,31 @@ func TestAppendEntriesPut3(t *testing.T) {
 	}
 }
 
+// Step down and update term if we receive a higher term
+func TestRequestVoteGreaterTerm(t *testing.T) {
+	raft = getRaft()
+	result := getResult()
+	result.Error = NONE
+	raft.Role = spec.CANDIDATE
+	oc.RequestVote(spec.RequestVoteArgs{Term: 5}, result)
+	assertResult(result.Error, NONE, t)
+	if raft.Role != spec.FOLLOWER || raft.CurrentTerm != 5 {
+		t.Fatalf("That's just messed up.")
+	}
+}
+
 func TestRequestVote(t *testing.T) {
 	raft = getRaft()
 	result := getResult()
 	result.Error = NONE
 	oc.RequestVote(spec.RequestVoteArgs{}, result)
 	assertResult(result.Error, NONE, t)
+	if result.VoteGranted == false {
+		t.Fatalf("That's just messed up.")
+	}
 }
 
+// Work through the multiple failure cases
 func TestRequestVote1(t *testing.T) {
 	raft = getRaft()
 	result := getResult()
