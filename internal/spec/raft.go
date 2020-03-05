@@ -14,6 +14,10 @@ import (
 	"github.com/slin63/raft-consensus/internal/config"
 )
 
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
+
 const (
 	LEADER = iota
 	FOLLOWER

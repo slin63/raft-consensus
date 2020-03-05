@@ -2,11 +2,10 @@ version: '3'
 
 # All of these servers should have their ports exposed, but because we're using --scale we're not going to.
 services:
-  raft-introducer:
-    container_name: raft-introducer
+  fd-introducer:
+    container_name: fd-introducer
     environment:
       - INTRODUCER=1
-      - LEADER=1
     ports:
       - "6002:6002"
       - "6004:6004"
@@ -14,5 +13,5 @@ services:
 
   worker:
     depends_on:
-      - "raft-introducer"
+      - "fd-introducer"
     build: .

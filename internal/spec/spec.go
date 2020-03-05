@@ -40,8 +40,8 @@ const MemberRPCRetryInterval = 3
 const MemberRPCRetryMax = 5
 const MemberInterval = 5
 
-func ReportOnline() {
-	log.Printf("[ONLINE]")
+func ReportOnline(to int64) {
+	log.Printf("[ONLINE] [ELECTTIMEOUT=%d]", to)
 }
 
 // Query the membership service running on the same machine for membership information.
@@ -52,7 +52,7 @@ func GetSelf(self *Self) {
 		time.Sleep(MemberRPCRetryInterval * time.Second)
 		client, err = rpc.DialHTTP("tcp", "localhost:"+MemberRPCPort)
 		if err != nil {
-			log.Println("RPC server still spoolinggithub.com/slin63/raft-consensus. dialing:", err)
+			log.Println("RPC server still spooling... dialing:", err)
 		} else {
 			break
 		}

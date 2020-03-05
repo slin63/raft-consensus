@@ -22,13 +22,7 @@ var self spec.Self
 var endElection = make(chan int, 1)
 var block = make(chan int, 1)
 
-func Live(isLeader bool) {
-	// If you're the leader, sleep for a little bit and let everyone else get started.
-	if isLeader {
-		// Sleep for a little bit so the other nodes have time to start up
-		time.Sleep(time.Second * 2)
-	}
-
+func Live() {
 	// Initialize logging to file
 	f, err := os.OpenFile(config.C.Logfile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
@@ -41,18 +35,14 @@ func Live(isLeader bool) {
 	log.SetPrefix(config.C.Prefix + fmt.Sprintf(" [PID=%d]", self.PID) + " - ")
 
 	// Create our raft instance
-	leader = isLeader
 	raft = &spec.Raft{
 		Log:          []string{"0,NULL"},
 		ElectTimeout: spec.ElectTimeout(),
 		Wg:           &sync.WaitGroup{},
 	}
 	raft.Init(&self)
-	if leader {
-		raft.Role = spec.LEADER
-	}
 
-	spec.ReportOnline()
+	spec.ReportOnline(raft.ElectTimeout)
 	go live()
 
 	<-block

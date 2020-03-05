@@ -1,5 +1,5 @@
 {
-    "Introducer": "raft-introducer",
+    "Introducer": "fd-introducer",
     "ElectTimeoutMin": 750,
     "ElectTimeoutMax": 1000,
     "HeartbeatInterval": 250,
