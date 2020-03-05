@@ -17,13 +17,16 @@ import (
 // Because rafts float in the ocean
 type Ocean int
 
-// AppendEntries Error Enums
+// RPC Error Enums
 const (
 	NONE = iota
 	MISMATCHTERM
 	MISMATCHLOGTERM
 	MISSINGLOGENTRY
 	CONFLICTINGENTRY
+	ALREADYVOTED
+	OUTDATEDLOGTERM
+	OUTDATEDLOGLENGTH
 )
 
 func serveOceanRPC() {
@@ -154,24 +157,24 @@ func (f *Ocean) AppendEntries(a spec.AppendEntriesArgs, result *spec.Result) err
 func (f *Ocean) RequestVote(a spec.RequestVoteArgs, result *spec.Result) error {
 	// (1) S5.1 Fail if our term is greater
 	if raft.CurrentTerm > a.Term {
-		*result = spec.Result{Term: raft.CurrentTerm, VoteGranted: false}
+		*result = spec.Result{Term: raft.CurrentTerm, VoteGranted: false, Error: MISMATCHTERM}
 		return nil
 	}
 
 	// (2) S5.2, S5.4 Make sure we haven't already voted for someone else
-	if raft.VotedFor != spec.NOCANDIDATE || raft.VotedFor != a.CandidateId {
-		*result = spec.Result{Term: raft.CurrentTerm, VoteGranted: false}
+	if raft.VotedFor != spec.NOCANDIDATE && raft.VotedFor != a.CandidateId {
+		*result = spec.Result{Term: raft.CurrentTerm, VoteGranted: false, Error: ALREADYVOTED}
 		return nil
 	}
 
 	// Make sure candidate's log is at least as up-to-date as our log by
 	// (a) Comparing log terms and (b) log length
 	if a.LastLogTerm < spec.GetTerm(raft.GetLastEntry()) {
-		*result = spec.Result{Term: raft.CurrentTerm, VoteGranted: false}
+		*result = spec.Result{Term: raft.CurrentTerm, VoteGranted: false, Error: OUTDATEDLOGTERM}
 		return nil
 	} else if a.LastLogTerm == spec.GetTerm(raft.GetLastEntry()) {
-		if a.LastLogIndex < len(raft.Log) {
-			*result = spec.Result{Term: raft.CurrentTerm, VoteGranted: false}
+		if a.LastLogIndex < len(raft.Log)-1 {
+			*result = spec.Result{Term: raft.CurrentTerm, VoteGranted: false, Error: OUTDATEDLOGLENGTH}
 			return nil
 		}
 	}
@@ -179,7 +182,6 @@ func (f *Ocean) RequestVote(a spec.RequestVoteArgs, result *spec.Result) error {
 	// If we made it to this point, the incoming log is as up-to-date as ours
 	// and we can safely grant our vote.
 	*result = spec.Result{Term: raft.CurrentTerm, VoteGranted: true}
-
 	return nil
 
 }

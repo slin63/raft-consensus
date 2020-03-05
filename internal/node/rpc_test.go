@@ -112,6 +112,59 @@ func TestAppendEntriesPut3(t *testing.T) {
 	}
 }
 
+func TestRequestVote(t *testing.T) {
+	raft = getRaft()
+	result := getResult()
+	result.Error = NONE
+	oc.RequestVote(spec.RequestVoteArgs{}, result)
+	assertResult(result.Error, NONE, t)
+}
+
+func TestRequestVote1(t *testing.T) {
+	raft = getRaft()
+	result := getResult()
+	oc.RequestVote(spec.RequestVoteArgs{Term: -1}, result)
+	assertResult(result.Error, MISMATCHTERM, t)
+}
+
+func TestRequestVote2(t *testing.T) {
+	raft = getRaft()
+	raft.VotedFor = 5
+	result := getResult()
+	oc.RequestVote(spec.RequestVoteArgs{CandidateId: 1}, result)
+	assertResult(result.Error, ALREADYVOTED, t)
+
+	result.Error = NONE
+	oc.RequestVote(spec.RequestVoteArgs{CandidateId: 5}, result)
+	assertResult(result.Error, NONE, t)
+}
+
+func TestRequestVote3a(t *testing.T) {
+	raft = getRaft()
+	raft.Log = []string{"0,test", "1,test", "2,test", "2,test"}
+	raft.CurrentTerm = 2
+	result := getResult()
+	oc.RequestVote(spec.RequestVoteArgs{Term: 2, LastLogTerm: 1}, result)
+	assertResult(result.Error, OUTDATEDLOGTERM, t)
+	assertResult(result.Term, 2, t)
+}
+
+func TestRequestVote3b(t *testing.T) {
+	raft = getRaft()
+	raft.Log = []string{"0,test", "1,test", "2,test", "2,test"}
+	raft.CurrentTerm = 2
+	result := getResult()
+	oc.RequestVote(spec.RequestVoteArgs{Term: 2, LastLogTerm: 2, LastLogIndex: 2}, result)
+	assertResult(result.Error, OUTDATEDLOGLENGTH, t)
+	assertResult(result.Term, 2, t)
+}
+
+func assertResult(value int, expected int, t *testing.T) {
+	if value != expected {
+		t.Fatalf("Expected value to be %d, got %d", expected, value)
+	}
+}
+
 func getResult() *spec.Result {
 	return &spec.Result{}
 }
