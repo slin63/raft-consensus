@@ -13,8 +13,6 @@ var oc *Ocean = new(Ocean)
 
 func init() {
 	config.C.LogAppendEntries = false
-	heartbeats = make(chan int64, 10)
-
 }
 
 // See that heartbeats are working
@@ -214,10 +212,12 @@ func getArgs() *spec.AppendEntriesArgs {
 }
 
 func getRaft() *spec.Raft {
-	return &spec.Raft{
+	r := &spec.Raft{
 		CurrentTerm: 0,
 		Log:         []string{"0"},
 		CommitIndex: 0,
 		LastApplied: 0,
 	}
+	r.Init(&spec.Self{})
+	return r
 }

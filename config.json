@@ -6,8 +6,9 @@
     "Quorum": 0.6,
     "Prefix": "[RAFT]",
     "Logfile": "raft.log",
-    "LogHeartbeats": false,
+    "LogHeartbeats": true,
     "LogAppendEntries": true,
+    "LogTimers": true,
     "RPCPort": "6004",
     "RPCMaxRetries": 5,
     "RPCRetryInterval": 1

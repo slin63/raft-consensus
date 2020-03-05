@@ -21,6 +21,7 @@ type configParam struct {
 	Logfile          string
 	LogHeartbeats    bool
 	LogAppendEntries bool
+	LogTimers        bool
 
 	// Networking
 	RPCPort          string

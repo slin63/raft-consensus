@@ -21,14 +21,10 @@ var self spec.Self
 
 var block = make(chan int, 1)
 
-// A channel full of unix timestamps corresponding to last heartbeats
-var heartbeats = make(chan int64, 1)
-
 func Live(isLeader bool) {
 	// If you're the leader, sleep for a little bit and let everyone else get started.
-	// TODO (03/03 @ 11:07): one election is implemented, have it so that the nodes elect a leader
-	// instead of having a "default" leader
 	if isLeader {
+		// Sleep for a little bit so the other nodes have time to start up
 		time.Sleep(time.Second * 2)
 	}
 
@@ -56,46 +52,41 @@ func Live(isLeader bool) {
 	}
 
 	spec.ReportOnline()
+	go live()
 
+	<-block
+}
+
+func live() {
 	go serveOceanRPC()
 	go subscribeMembership()
 	go heartbeat()
-
-	<-block
 }
 
 // Leaders beat their hearts
 // Followers listen to heartbeats and initiate elections after enough time is passed
 func heartbeat() {
-	var wg sync.WaitGroup
-	var last int64
-
 	for {
 		if leader {
 			// Send empty append entries to every member as goroutines
 			spec.SelfRWMutex.RLock()
 			for PID := range self.MemberMap {
 				if PID != self.PID {
-					go func(PID int, wg *sync.WaitGroup) {
-						// TODO (03/03 @ 11:07): may have to replace this with appendEntriesUntilSuccess
+					go func(PID int) {
 						CallAppendEntries(PID, raft.GetAppendEntriesArgs(&self))
 						config.LogIf(
 							fmt.Sprintf("[HEARTBEAT->]: [PID=%d]", PID),
 							config.C.LogHeartbeats,
 						)
-					}(PID, &wg)
+					}(PID)
 				}
 			}
 			spec.SelfRWMutex.RUnlock()
 
-			// Wait for those routines to complete
-			wg.Wait()
 			time.Sleep(time.Duration(config.C.HeartbeatInterval) * time.Millisecond)
 		} else {
-			if len(heartbeats) > 0 {
-				last = <-heartbeats
-			}
-			if last != 0 && timeMs()-last > raft.ElectTimeout {
+			select {
+			case <-raft.ElectTimer.C:
 				log.Fatalf("[ELECTTIMEOUT]")
 			}
 		}

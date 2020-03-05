@@ -150,7 +150,7 @@ func (f *Ocean) AppendEntries(a spec.AppendEntriesArgs, result *spec.Result) err
 
 	// If Entries is empty, this is a heartbeat.
 	if len(a.Entries) == 0 {
-		heartbeats <- timeMs()
+		raft.ResetElectTimer()
 		config.LogIf("[<-HEARTBEAT]", config.C.LogHeartbeats)
 	} else {
 		log.Printf("[<-PUTENTRY]: [PID=%d] [RESULT=%v] [LOGS=%v]", self.PID, *result, raft.Log)
@@ -160,11 +160,16 @@ func (f *Ocean) AppendEntries(a spec.AppendEntriesArgs, result *spec.Result) err
 }
 
 func (f *Ocean) RequestVote(a spec.RequestVoteArgs, result *spec.Result) error {
+	spec.RaftRWMutex.Lock()
 	// Step down and update term if we receive a higher term
 	if a.Term > raft.CurrentTerm {
 		raft.CurrentTerm = a.Term
 		raft.Role = spec.FOLLOWER
 	}
+	spec.RaftRWMutex.Unlock()
+
+	spec.RaftRWMutex.RLock()
+	defer spec.RaftRWMutex.RUnlock()
 
 	// (1) S5.1 Fail if our term is greater
 	if raft.CurrentTerm > a.Term {

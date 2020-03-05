@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/slin63/raft-consensus/internal/config"
 )
@@ -49,6 +50,7 @@ type Raft struct {
 	MatchIndex map[int]int
 
 	ElectTimeout int64
+	ElectTimer   *time.Timer
 
 	Wg *sync.WaitGroup
 }
@@ -100,6 +102,8 @@ func (r *Raft) Init(self *Self) {
 	r.MatchIndex = make(map[int]int)
 	r.Role = FOLLOWER
 	r.VotedFor = NOCANDIDATE
+	r.ElectTimer = time.NewTimer(time.Duration(r.ElectTimeout) * time.Millisecond)
+	r.ElectTimer.Stop()
 	for PID := range self.MemberMap {
 		r.NextIndex[PID] = r.CommitIndex + 1
 		r.MatchIndex[PID] = 0
@@ -124,6 +128,12 @@ func (r *Raft) GetAppendEntriesArgs(self *Self) *AppendEntriesArgs {
 		LeaderId:     self.PID,
 		LeaderCommit: r.CommitIndex,
 	}
+}
+
+func (r *Raft) ResetElectTimer() {
+	config.LogIf(fmt.Sprintf("Resetting election timer"), config.C.LogTimers)
+	r.ElectTimer.Reset(time.Duration(r.ElectTimeout) * time.Millisecond)
+	config.LogIf(fmt.Sprintf("Reset!"), config.C.LogTimers)
 }
 
 func GetTerm(entry *string) int {
