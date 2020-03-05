@@ -9,4 +9,4 @@
 4. Rainbows!
 
 ### Running tests
-1. `CONFIG=$(pwd)/config.json go test -v ./src/...`
+1. `CONFIG=$(pwd)/config.json go test -v ./internal/...`

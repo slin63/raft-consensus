@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"../config"
-	"../spec"
+	"github.com/slin63/raft-consensus/internal/config"
+	"github.com/slin63/raft-consensus/internal/spec"
 )
 
 var oc *Ocean = new(Ocean)

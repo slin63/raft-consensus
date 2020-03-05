@@ -6,8 +6,8 @@ import (
 	"net/rpc"
 	"strings"
 
-	"../config"
-	"../spec"
+	"github.com/slin63/raft-consensus/internal/config"
+	"github.com/slin63/raft-consensus/internal/spec"
 )
 
 const helpS = `Send over a string.`

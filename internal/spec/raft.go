@@ -10,7 +10,7 @@ import (
 	"strings"
 	"sync"
 
-	"../config"
+	"github.com/slin63/raft-consensus/internal/config"
 )
 
 const (

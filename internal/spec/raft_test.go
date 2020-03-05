@@ -3,7 +3,7 @@ package spec
 import (
 	"testing"
 
-	"../config"
+	"github.com/slin63/raft-consensus/internal/config"
 )
 
 func TestElectTimeout(t *testing.T) {
@@ -71,9 +71,9 @@ func TestGetLastEntry(t *testing.T) {
 		Log: []string{"0", "1", "2"},
 	}
 
-	if raft.GetLastEntry() != "2" {
+	if *raft.GetLastEntry() != "2" {
 		t.Fatalf(
-			"Expected entry to be %s, but got %s", "2", raft.GetLastEntry(),
+			"Expected entry to be %s, but got %s", "2", *raft.GetLastEntry(),
 		)
 	}
 }

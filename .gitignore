@@ -18,3 +18,4 @@ membership
 *.log
 pkg/
 .DS_Store
+raft

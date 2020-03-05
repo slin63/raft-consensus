@@ -52,7 +52,7 @@ func GetSelf(self *Self) {
 		time.Sleep(MemberRPCRetryInterval * time.Second)
 		client, err = rpc.DialHTTP("tcp", "localhost:"+MemberRPCPort)
 		if err != nil {
-			log.Println("RPC server still spooling... dialing:", err)
+			log.Println("RPC server still spoolinggithub.com/slin63/raft-consensus. dialing:", err)
 		} else {
 			break
 		}

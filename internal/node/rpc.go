@@ -10,8 +10,8 @@ import (
 	"net/rpc"
 	"time"
 
-	"../config"
-	"../spec"
+	"github.com/slin63/raft-consensus/internal/config"
+	"github.com/slin63/raft-consensus/internal/spec"
 )
 
 // Because rafts float in the ocean
