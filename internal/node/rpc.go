@@ -58,8 +58,11 @@ func (f *Ocean) AppendEntries(a spec.AppendEntriesArgs, result *spec.Result) err
 	spec.RaftRWMutex.Lock()
 	defer spec.RaftRWMutex.Unlock()
 	// (0) If their term is greater, update our term and convert to follower
-	if a.Term > raft.CurrentTerm {
+	if a.Term >= raft.CurrentTerm {
 		raft.CurrentTerm = a.Term
+		if raft.Role == spec.CANDIDATE {
+			close(endElection)
+		}
 		raft.Role = spec.FOLLOWER
 	}
 
@@ -152,6 +155,9 @@ func (f *Ocean) AppendEntries(a spec.AppendEntriesArgs, result *spec.Result) err
 	if len(a.Entries) == 0 {
 		raft.ResetElectTimer()
 		config.LogIf("[<-HEARTBEAT]", config.C.LogHeartbeats)
+		if raft.Role == spec.CANDIDATE {
+			close(endElection)
+		}
 	} else {
 		log.Printf("[<-PUTENTRY]: [PID=%d] [RESULT=%v] [LOGS=%v]", self.PID, *result, raft.Log)
 	}
@@ -167,18 +173,24 @@ func (f *Ocean) RequestVote(a spec.RequestVoteArgs, result *spec.Result) error {
 
 	// Step down and update term if we receive a higher term
 	if a.Term > raft.CurrentTerm {
+		config.LogIf(fmt.Sprintf("[<-ELECTIONERR]: Their term is higher"), config.C.LogElections)
 		raft.CurrentTerm = a.Term
+		if raft.Role == spec.CANDIDATE {
+			close(endElection)
+		}
 		raft.Role = spec.FOLLOWER
 	}
 
 	// (1) S5.1 Fail if our term is greater
 	if raft.CurrentTerm > a.Term {
+		config.LogIf(fmt.Sprintf("[<-ELECTIONERR]: MISMATCHTERM"), config.C.LogElections)
 		*result = spec.Result{Term: raft.CurrentTerm, VoteGranted: false, Error: MISMATCHTERM}
 		return nil
 	}
 
 	// (2) S5.2, S5.4 Make sure we haven't already voted for someone else
 	if raft.VotedFor != spec.NOCANDIDATE && raft.VotedFor != a.CandidateId {
+		config.LogIf(fmt.Sprintf("[<-ELECTIONERR]: ALREADYVOTED"), config.C.LogElections)
 		*result = spec.Result{Term: raft.CurrentTerm, VoteGranted: false, Error: ALREADYVOTED}
 		return nil
 	}
@@ -186,10 +198,12 @@ func (f *Ocean) RequestVote(a spec.RequestVoteArgs, result *spec.Result) error {
 	// Make sure candidate's log is at least as up-to-date as our log by
 	// (a) Comparing log terms and (b) log length
 	if a.LastLogTerm < spec.GetTerm(raft.GetLastEntry()) {
+		config.LogIf(fmt.Sprintf("[<-ELECTIONERR]: OUTDATEDLOGTERM"), config.C.LogElections)
 		*result = spec.Result{Term: raft.CurrentTerm, VoteGranted: false, Error: OUTDATEDLOGTERM}
 		return nil
 	} else if a.LastLogTerm == spec.GetTerm(raft.GetLastEntry()) {
 		if a.LastLogIndex < len(raft.Log)-1 {
+			config.LogIf(fmt.Sprintf("[<-ELECTIONERR]: OUTDATEDLOGLENGTH"), config.C.LogElections)
 			*result = spec.Result{Term: raft.CurrentTerm, VoteGranted: false, Error: OUTDATEDLOGLENGTH}
 			return nil
 		}

@@ -34,51 +34,53 @@ func InitiateElection() {
 		}
 
 		go func(PID int) {
-			client := connect(PID)
-			defer client.Close()
-			args := &spec.RequestVoteArgs{
-				raft.CurrentTerm,
-				self.PID,
-				raft.GetLastLogIndex(),
-				raft.GetLastLogTerm(),
-			}
+			select {
+			case <-endElection:
+				config.LogIf(fmt.Sprintf("[ELECTION-X->]: End election signal received"), config.C.LogElections)
+				return
+			default:
+				client := connect(PID)
+				defer client.Close()
+				args := &spec.RequestVoteArgs{
+					raft.CurrentTerm,
+					self.PID,
+					raft.GetLastLogIndex(),
+					raft.GetLastLogTerm(),
+				}
 
-			var result spec.Result
-			if err := client.Call("Ocean.RequestVote", args, &result); err != nil {
-				log.Fatal("Ocean.RequestVote failed:", err)
+				var result spec.Result
+				if err := client.Call("Ocean.RequestVote", args, &result); err != nil {
+					log.Fatal("Ocean.RequestVote failed:", err)
+				}
+				results <- &result
 			}
-			results <- &result
 		}(PID)
 	}
 
 	// Process results as they come in, become the leader if we receive enough votes
-	for r := range results {
-		config.LogIf(fmt.Sprintf("[CANDIDATE]: Processing results"), config.C.LogElections)
-		// Secede to nodes with higher terms
-		if r.Term > raft.CurrentTerm {
-			raft.CurrentTerm = r.Term
-			endElection <- 1
-		}
-
-		if r.VoteGranted {
-			votes += 1
-			if votes >= quorum {
-				config.LogIf(fmt.Sprintf("[CANDIDATE]: QUORUM Received (%d/%d)", votes, quorum), config.C.LogElections)
-				endElection <- 1
-				raft.BecomeLeader(&self)
-				break
+	for {
+		select {
+		case r := <-results:
+			config.LogIf(fmt.Sprintf("[CANDIDATE]: Processing results"), config.C.LogElections)
+			// Secede to nodes with higher terms
+			if r.Term > raft.CurrentTerm {
+				raft.CurrentTerm = r.Term
+				close(endElection)
 			}
+
+			if r.VoteGranted {
+				votes += 1
+				if votes >= quorum {
+					config.LogIf(fmt.Sprintf("[CANDIDATE]: QUORUM Received (%d/%d)", votes, quorum), config.C.LogElections)
+					close(endElection)
+					raft.BecomeLeader(&self)
+					return
+				}
+			}
+		case <-endElection:
+			config.LogIf(fmt.Sprintf("[ELECTION-X]: End election signal received"), config.C.LogElections)
+			return
 		}
+
 	}
-	config.LogIf(fmt.Sprintf("[CANDIDATE]: DONE"), config.C.LogElections)
 }
-
-// type RequestVoteArgs struct {
-//     // Term and ID of candidate requesting vote
-//     Term        int
-//     CandidateId int
-
-//     // Index and term of candidate's last log entry
-//     LastLogIndex int
-//     LastLogTerm  int
-// }

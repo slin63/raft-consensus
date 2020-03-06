@@ -18,7 +18,7 @@ var raft *spec.Raft
 // Membership layer state
 var self spec.Self
 
-var endElection = make(chan int, 1)
+var endElection = make(chan struct{})
 var block = make(chan int, 1)
 
 func Live() {
@@ -85,11 +85,11 @@ func heartbeat() {
 			case <-raft.ElectTimer.C:
 				if raft.Role == spec.CANDIDATE {
 					config.LogIf(fmt.Sprintf("[ELECTTIMEOUT] CANDIDATE timed out while waiting for votes"), config.C.LogElections)
-					endElection <- 1
 				} else {
 					log.Println("[ELECTTIMEOUT]")
-					go InitiateElection()
 				}
+				go InitiateElection()
+
 			default:
 				continue
 			}
