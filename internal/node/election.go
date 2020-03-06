@@ -10,11 +10,12 @@ import (
 )
 
 func InitiateElection() {
-	log.Printf("[ELECTION->]: Starting election")
+	config.LogIf(fmt.Sprintf("[ELECTION->]: PRE-LOCK Starting election"), config.C.LogElections)
 	spec.RaftRWMutex.Lock()
 	defer spec.RaftRWMutex.Unlock()
 	spec.SelfRWMutex.RLock()
 	defer spec.SelfRWMutex.RUnlock()
+	config.LogIf(fmt.Sprintf("[ELECTION->]: POST-LOCK Starting election"), config.C.LogElections)
 
 	// S5.2 On conversion to candidate
 	raft.Role = spec.CANDIDATE
@@ -41,7 +42,6 @@ func InitiateElection() {
 				raft.GetLastLogIndex(),
 				raft.GetLastLogTerm(),
 			}
-			fmt.Println(votes)
 
 			var result spec.Result
 			if err := client.Call("Ocean.RequestVote", args, &result); err != nil {
@@ -66,13 +66,11 @@ func InitiateElection() {
 				config.LogIf(fmt.Sprintf("[CANDIDATE]: QUORUM Received (%d/%d)", votes, quorum), config.C.LogElections)
 				endElection <- 1
 				raft.BecomeLeader(&self)
-				log.Printf("after")
 				break
 			}
 		}
 	}
-	log.Printf("waaay after")
-
+	config.LogIf(fmt.Sprintf("[CANDIDATE]: DONE"), config.C.LogElections)
 }
 
 // type RequestVoteArgs struct {

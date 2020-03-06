@@ -14,7 +14,6 @@ import (
 
 // Raft state
 var raft *spec.Raft
-var leader bool
 
 // Membership layer state
 var self spec.Self
@@ -62,13 +61,15 @@ func live() {
 // Followers listen to heartbeats and initiate elections after enough time is passed
 func heartbeat() {
 	for {
-		if leader {
+		if raft.Role == spec.LEADER {
 			// Send empty append entries to every member as goroutines
-			spec.SelfRWMutex.RLock()
 			for PID := range self.MemberMap {
 				if PID != self.PID {
 					go func(PID int) {
+						spec.SelfRWMutex.RLock()
 						CallAppendEntries(PID, raft.GetAppendEntriesArgs(&self))
+						spec.SelfRWMutex.RUnlock()
+
 						config.LogIf(
 							fmt.Sprintf("[HEARTBEAT->]: [PID=%d]", PID),
 							config.C.LogHeartbeats,
@@ -76,10 +77,10 @@ func heartbeat() {
 					}(PID)
 				}
 			}
-			spec.SelfRWMutex.RUnlock()
 
 			time.Sleep(time.Duration(config.C.HeartbeatInterval) * time.Millisecond)
 		} else {
+			// Watch for election timer timeouts
 			select {
 			case <-raft.ElectTimer.C:
 				if raft.Role == spec.CANDIDATE {
@@ -89,7 +90,8 @@ func heartbeat() {
 					log.Println("[ELECTTIMEOUT]")
 					go InitiateElection()
 				}
-
+			default:
+				continue
 			}
 		}
 	}

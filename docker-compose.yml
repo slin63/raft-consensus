@@ -12,6 +12,4 @@ services:
     build: .
 
   worker:
-    depends_on:
-      - "fd-introducer"
     build: .
