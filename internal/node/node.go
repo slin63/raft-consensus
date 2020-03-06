@@ -49,6 +49,8 @@ func Live() {
 }
 
 func live() {
+	// Start the election timer
+	raft.ResetElectTimer()
 	go serveOceanRPC()
 	go subscribeMembership()
 	go heartbeat()

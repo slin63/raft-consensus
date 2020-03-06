@@ -160,9 +160,11 @@ func (f *Ocean) AppendEntries(a spec.AppendEntriesArgs, result *spec.Result) err
 }
 
 func (f *Ocean) RequestVote(a spec.RequestVoteArgs, result *spec.Result) error {
-	log.Printf("[<-ELECTION]: Received RequestVote from %d", a.CandidateId)
+	config.LogIf(fmt.Sprintf("[<-ELECTION]: RECEIVED RequestVote from %d", a.CandidateId), config.C.LogElections)
 	spec.RaftRWMutex.Lock()
 	defer spec.RaftRWMutex.Unlock()
+	config.LogIf(fmt.Sprintf("[<-ELECTION]: PROCESSING RequestVote from %d", a.CandidateId), config.C.LogElections)
+
 	// Step down and update term if we receive a higher term
 	if a.Term > raft.CurrentTerm {
 		raft.CurrentTerm = a.Term
@@ -197,8 +199,9 @@ func (f *Ocean) RequestVote(a spec.RequestVoteArgs, result *spec.Result) error {
 	// and we can safely grant our vote and reset our election timer.
 	raft.ResetElectTimer()
 	*result = spec.Result{Term: raft.CurrentTerm, VoteGranted: true}
-	return nil
+	config.LogIf(fmt.Sprintf("[<-ELECTION]: GRANTED RequestVote for %d", a.CandidateId), config.C.LogElections)
 
+	return nil
 }
 
 // Receive entries from a client to be added to our log

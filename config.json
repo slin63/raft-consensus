@@ -9,6 +9,7 @@
     "LogHeartbeats": true,
     "LogAppendEntries": true,
     "LogTimers": true,
+    "LogElections": true,
     "RPCPort": "6004",
     "RPCMaxRetries": 5,
     "RPCRetryInterval": 1

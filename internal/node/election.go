@@ -9,7 +9,7 @@ import (
 )
 
 func InitiateElection() {
-	log.Printf("[ELECTION->]: Starting election", self.PID)
+	log.Printf("[ELECTION->]: Starting election")
 	spec.RaftRWMutex.Lock()
 	defer spec.RaftRWMutex.Unlock()
 	spec.SelfRWMutex.RLock()
@@ -27,6 +27,10 @@ func InitiateElection() {
 	// TODO (03/05 @ 18:00): terminate this with cancelElection or raft.ElectTimer
 	// Send out RequestVote RPCs to all other nodes
 	for PID := range self.MemberMap {
+		if PID == self.PID {
+			continue
+		}
+
 		go func(PID int) {
 			client := connect(PID)
 			defer client.Close()
@@ -38,17 +42,18 @@ func InitiateElection() {
 			}
 			fmt.Println(votes)
 
-			var result *spec.Result
-			if err := client.Call("Ocean.RequestVote", args, result); err != nil {
-				log.Fatal(err)
+			var result spec.Result
+			if err := client.Call("Ocean.RequestVote", args, &result); err != nil {
+				log.Fatal("Ocean.RequestVote failed:", err)
 			}
-			results <- result
+			results <- &result
 		}(PID)
 	}
 
 	// Process results as they come in
 	for r := range results {
 		fmt.Println(*r)
+		fmt.Println("processing results")
 		// Secede to nodes with higher terms
 		if r.Term > raft.CurrentTerm {
 			raft.CurrentTerm = r.Term
