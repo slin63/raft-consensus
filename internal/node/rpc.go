@@ -57,6 +57,7 @@ func CallAppendEntries(PID int, args *spec.AppendEntriesArgs) *spec.Result {
 func (f *Ocean) AppendEntries(a spec.AppendEntriesArgs, result *spec.Result) error {
 	spec.RaftRWMutex.Lock()
 	defer spec.RaftRWMutex.Unlock()
+
 	// (0) If their term is greater, update our term and convert to follower
 	if a.Term >= raft.CurrentTerm {
 		raft.CurrentTerm = a.Term
@@ -153,7 +154,7 @@ func (f *Ocean) AppendEntries(a spec.AppendEntriesArgs, result *spec.Result) err
 
 	// If Entries is empty, this is a heartbeat.
 	if len(a.Entries) == 0 {
-		raft.ResetElectTimer()
+		raft.ResetElectionState(a.Term)
 		config.LogIf("[<-HEARTBEAT]", config.C.LogHeartbeats)
 		if raft.Role == spec.CANDIDATE {
 			close(endElection)
@@ -190,7 +191,7 @@ func (f *Ocean) RequestVote(a spec.RequestVoteArgs, result *spec.Result) error {
 
 	// (2) S5.2, S5.4 Make sure we haven't already voted for someone else
 	if raft.VotedFor != spec.NOCANDIDATE && raft.VotedFor != a.CandidateId {
-		config.LogIf(fmt.Sprintf("[<-ELECTIONERR]: ALREADYVOTED"), config.C.LogElections)
+		config.LogIf(fmt.Sprintf("[<-ELECTIONERR]: ALREADYVOTED [raft.VotedFor=%d]", raft.VotedFor), config.C.LogElections)
 		*result = spec.Result{Term: raft.CurrentTerm, VoteGranted: false, Error: ALREADYVOTED}
 		return nil
 	}

@@ -109,6 +109,13 @@ func (r *Raft) Init(self *Self) {
 	r.ElectTimer.Stop()
 }
 
+// Updates current term to new term, resets election relevant states
+func (r *Raft) ResetElectionState(term int) {
+	r.CurrentTerm = term
+	r.VotedFor = NOCANDIDATE
+	r.ResetElectTimer()
+}
+
 // On winning election, change state to leader and update
 // leader specific volatile state
 func (r *Raft) BecomeLeader(self *Self) {
