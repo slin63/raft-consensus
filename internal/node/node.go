@@ -44,16 +44,18 @@ func Live() {
 
 	spec.ReportOnline(raft.ElectTimeout)
 	go live()
-
 	<-block
 }
 
 func live() {
-	// Start the election timer
-	raft.ResetElectTimer()
 	go serveOceanRPC()
 	go subscribeMembership()
 	go heartbeat()
+
+	// Wait for other nodes to come online
+	// Start the election timer
+	time.Sleep(time.Second * 1)
+	raft.ResetElectTimer()
 }
 
 // Leaders beat their hearts
@@ -80,8 +82,14 @@ func heartbeat() {
 		} else {
 			select {
 			case <-raft.ElectTimer.C:
-				log.Println("[ELECTTIMEOUT]")
-				go InitiateElection()
+				if raft.Role == spec.CANDIDATE {
+					config.LogIf(fmt.Sprintf("[ELECTTIMEOUT] CANDIDATE timed out while waiting for votes"), config.C.LogElections)
+					endElection <- 1
+				} else {
+					log.Println("[ELECTTIMEOUT]")
+					go InitiateElection()
+				}
+
 			}
 		}
 	}

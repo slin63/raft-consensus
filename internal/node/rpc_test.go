@@ -13,6 +13,8 @@ var oc *Ocean = new(Ocean)
 
 func init() {
 	config.C.LogAppendEntries = false
+	config.C.LogElections = false
+	config.C.LogTimers = false
 }
 
 // See that heartbeats are working

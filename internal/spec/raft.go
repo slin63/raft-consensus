@@ -102,12 +102,24 @@ func (r *Raft) Init(self *Self) {
 	defer RaftRWMutex.Unlock()
 	SelfRWMutex.RLock()
 	defer SelfRWMutex.RUnlock()
-	r.NextIndex = make(map[int]int)
-	r.MatchIndex = make(map[int]int)
 	r.Role = FOLLOWER
 	r.VotedFor = NOCANDIDATE
+	r.initVolatileState(self)
 	r.ElectTimer = time.NewTimer(time.Duration(r.ElectTimeout) * time.Millisecond)
 	r.ElectTimer.Stop()
+}
+
+// On winning election, change state to leader and update
+// leader specific volatile state
+func (r *Raft) BecomeLeader(self *Self) {
+	config.LogIf(fmt.Sprintf("[NEWLEADER] Becoming leader"), config.C.LogElections)
+	r.initVolatileState(self)
+	r.Role = LEADER
+}
+
+func (r *Raft) initVolatileState(self *Self) {
+	r.NextIndex = make(map[int]int)
+	r.MatchIndex = make(map[int]int)
 	for PID := range self.MemberMap {
 		r.NextIndex[PID] = r.CommitIndex + 1
 		r.MatchIndex[PID] = 0

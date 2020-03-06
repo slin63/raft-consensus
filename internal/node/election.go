@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/slin63/raft-consensus/internal/config"
 	"github.com/slin63/raft-consensus/internal/spec"
 )
 
@@ -50,10 +51,9 @@ func InitiateElection() {
 		}(PID)
 	}
 
-	// Process results as they come in
+	// Process results as they come in, become the leader if we receive enough votes
 	for r := range results {
-		fmt.Println(*r)
-		fmt.Println("processing results")
+		config.LogIf(fmt.Sprintf("[CANDIDATE]: Processing results"), config.C.LogElections)
 		// Secede to nodes with higher terms
 		if r.Term > raft.CurrentTerm {
 			raft.CurrentTerm = r.Term
@@ -62,9 +62,17 @@ func InitiateElection() {
 
 		if r.VoteGranted {
 			votes += 1
-			fmt.Println(votes, quorum)
+			if votes >= quorum {
+				config.LogIf(fmt.Sprintf("[CANDIDATE]: QUORUM Received (%d/%d)", votes, quorum), config.C.LogElections)
+				endElection <- 1
+				raft.BecomeLeader(&self)
+				log.Printf("after")
+				break
+			}
 		}
 	}
+	log.Printf("waaay after")
+
 }
 
 // type RequestVoteArgs struct {
