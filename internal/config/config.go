@@ -17,17 +17,19 @@ type configParam struct {
 	Quorum            float64
 
 	// Logging
-	Prefix           string
-	Logfile          string
-	LogHeartbeats    bool
-	LogAppendEntries bool
-	LogTimers        bool
-	LogElections     bool
-	LogMembership    bool
+	Prefix            string
+	Logfile           string
+	LogHeartbeats     bool
+	LogHeartbeatsLead bool
+	LogAppendEntries  bool
+	LogTimers         bool
+	LogElections      bool
+	LogMembership     bool
 
 	// Networking
 	RPCPort          string
 	RPCMaxRetries    int
+	RPCTimeout       int
 	RPCRetryInterval int
 }
 

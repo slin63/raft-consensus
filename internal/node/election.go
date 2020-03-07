@@ -35,31 +35,28 @@ func InitiateElection() {
 		}
 
 		go func(PID int) {
-			select {
-			case <-endElection:
-				config.LogIf(fmt.Sprintf("[ELECTION-X->]: End election signal received"), config.C.LogElections)
+			log.Printf("InitiateElection() trying to connect to PID %d", PID)
+			client, err := connect(PID)
+			if err != nil {
+				log.Printf("[CONNERROR] InitiateElection failed to connect to [PID=%d]. Aborting", PID)
 				return
-			default:
-				log.Printf("InitiateElection() trying to connect to PID %d", PID)
-				client, err := connect(PID)
-				if err != nil {
-					log.Printf("[CONNERROR] InitiateElection failed to connect to [PID=%d]. Aborting", PID)
-					return
-				}
-				defer client.Close()
-				args := &spec.RequestVoteArgs{
-					raft.CurrentTerm,
-					self.PID,
-					raft.GetLastLogIndex(),
-					raft.GetLastLogTerm(),
-				}
-
-				var result spec.Result
-				if err := client.Call("Ocean.RequestVote", args, &result); err != nil {
-					log.Fatal("Ocean.RequestVote failed:", err)
-				}
-				results <- &result
 			}
+			defer client.Close()
+			args := &spec.RequestVoteArgs{
+				raft.CurrentTerm,
+				self.PID,
+				raft.GetLastLogIndex(),
+				raft.GetLastLogTerm(),
+			}
+
+			var result spec.Result
+			fmt.Println("over here")
+			if err := client.Call("Ocean.RequestVote", args, &result); err != nil {
+				log.Fatal("Ocean.RequestVote failed:", err)
+			}
+			fmt.Println("over here 2 electric boogaloo")
+
+			results <- &result
 		}(PID)
 	}
 

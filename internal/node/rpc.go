@@ -2,12 +2,14 @@
 package node
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"math"
 	"net"
 	"net/http"
 	"net/rpc"
+	"runtime"
 	"time"
 
 	"github.com/slin63/raft-consensus/internal/config"
@@ -62,6 +64,7 @@ func CallAppendEntries(PID int, args *spec.AppendEntriesArgs) *spec.Result {
 
 func (f *Ocean) AppendEntries(a spec.AppendEntriesArgs, result *spec.Result) error {
 	spec.RaftRWMutex.Lock()
+	log.Println("AppendEntries( )Goroutine count:", runtime.NumGoroutine())
 	defer spec.RaftRWMutex.Unlock()
 
 	// (0) If their term is greater, update our term and convert to follower
@@ -304,18 +307,35 @@ func connect(PID int) (*rpc.Client, error) {
 		log.Fatalf("[PID=%d] member not found.", PID)
 	}
 	for i := 0; i < config.C.RPCMaxRetries; i++ {
-		client, err = rpc.DialHTTP("tcp", node.IP+":"+config.C.RPCPort)
-		if err != nil {
-			_, ok = self.MemberMap[PID]
-			if !ok {
-				log.Printf("[CONNERROR-X] Was attempting to dial dead PID. [PID=%d] [ERR=%v]", PID, err)
-				return client, err
+		// Timeout if dialing takes too long. (https://github.com/golang/go/wiki/Timeouts)
+		c := make(chan struct{})
+		go func(client *rpc.Client, err *error) {
+			client, *err = rpc.DialHTTP("tcp", node.IP+":"+config.C.RPCPort)
+			log.Printf("Finished dialing")
+			c <- struct{}{}
+		}(client, &err)
+
+		select {
+		// Received a response. Handle error appropriately
+		case <-c:
+			if err != nil {
+				_, ok = self.MemberMap[PID]
+				if !ok {
+					log.Printf("[CONNERROR-X] Was attempting to dial dead PID. [PID=%d] [ERR=%v]", PID, err)
+					return client, err
+				}
+				log.Printf("[CONNERROR->] Failed to dial [PID=%d] [ERR=%v]", PID, err)
+				time.Sleep(time.Second * time.Duration(config.C.RPCRetryInterval))
+			} else {
+				break
 			}
-			log.Printf("[CONNERROR->] Failed to dial [PID=%d] [ERR=%v]", PID, err)
+		// Timed out waiting for a response. Wait and try again.
+		case <-time.After(time.Duration(config.C.RPCTimeout) * time.Second):
+			log.Printf("Timed out dialing %d", PID)
 			time.Sleep(time.Second * time.Duration(config.C.RPCRetryInterval))
-		} else {
-			break
 		}
 	}
+
+	err = errors.Unwrap(fmt.Errorf("Timed out waiting for response."))
 	return client, err
 }

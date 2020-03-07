@@ -4,14 +4,18 @@
     "ElectTimeoutMax": 1000,
     "HeartbeatInterval": 375,
     "Quorum": 0.7,
+
     "Prefix": "[RAFT]",
     "Logfile": "raft.log",
     "LogMembership": true,
     "LogHeartbeats": false,
+    "LogHeartbeatsLead": true,
     "LogAppendEntries": true,
     "LogTimers": false,
     "LogElections": true,
+
     "RPCPort": "6004",
-    "RPCMaxRetries": 5,
+    "RPCMaxRetries": 3,
+    "RPCTimeout": 10,
     "RPCRetryInterval": 1
 }

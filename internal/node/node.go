@@ -67,8 +67,6 @@ func heartbeat() {
 		if raft.Role == spec.LEADER {
 			// Send empty append entries to every member as goroutines
 			for PID := range self.MemberMap {
-				log.Println(&self.MemberMap)
-				log.Println(self.MemberMap)
 				if PID != self.PID {
 					heartbeats <- PID
 				}
@@ -106,10 +104,14 @@ func dispatchHeartbeats() {
 			return
 		} else {
 			go func(PID int) {
-				r := CallAppendEntries(PID, args)
 				config.LogIf(
 					fmt.Sprintf("[LEAD] [HEARTBEAT->]: to [PID=%d]", PID),
-					(config.C.LogHeartbeats && r.Error != CONNERROR),
+					config.C.LogHeartbeatsLead,
+				)
+				r := CallAppendEntries(PID, args)
+				config.LogIf(
+					fmt.Sprintf("[LEAD] [HEARTBEAT->]: DONE FROM [PID=%d]", PID),
+					(config.C.LogHeartbeatsLead && r.Error != CONNERROR),
 				)
 			}(PID)
 		}
