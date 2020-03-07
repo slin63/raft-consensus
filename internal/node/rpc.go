@@ -306,6 +306,11 @@ func connect(PID int) (*rpc.Client, error) {
 	for i := 0; i < config.C.RPCMaxRetries; i++ {
 		client, err = rpc.DialHTTP("tcp", node.IP+":"+config.C.RPCPort)
 		if err != nil {
+			_, ok = self.MemberMap[PID]
+			if !ok {
+				log.Printf("[CONNERROR-X] Was attempting to dial dead PID. [PID=%d] [ERR=%v]", PID, err)
+				return client, err
+			}
 			log.Printf("[CONNERROR->] Failed to dial [PID=%d] [ERR=%v]", PID, err)
 			time.Sleep(time.Second * time.Duration(config.C.RPCRetryInterval))
 		} else {

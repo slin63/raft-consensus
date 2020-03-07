@@ -70,5 +70,4 @@ func GetSelf(self *Self) {
 	*self = reply
 	SelfRWMutex.Unlock()
 	config.LogIf("[SELF]: POST-LOCK Fetch membership information", config.C.LogMembership)
-	log.Printf("[SELF]: %v", self.MemberMap)
 }

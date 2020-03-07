@@ -74,7 +74,13 @@ func heartbeat() {
 					spec.SelfRWMutex.RUnlock()
 
 					go func(PID int) {
-						log.Printf("[SELFHEARTBEAT]: %v", self.MemberMap)
+						if _, ok := self.MemberMap[PID]; !ok {
+							config.LogIf(
+								fmt.Sprintf("[HEARTBEATERR] Tried heartbeating to dead node [PID=%d].", PID),
+								config.C.LogHeartbeats,
+							)
+							return
+						}
 						r := CallAppendEntries(PID, args)
 						config.LogIf(
 							fmt.Sprintf("[LEAD] [HEARTBEAT->]: to [PID=%d]", PID),
