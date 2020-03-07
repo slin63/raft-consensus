@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"runtime"
 	"sync"
 	"time"
 
@@ -18,7 +19,7 @@ var raft *spec.Raft
 // Membership layer state
 var self spec.Self
 
-// var heartbeats = make(chan h{})
+var heartbeats = make(chan int)
 var endElection = make(chan struct{})
 var block = make(chan int, 1)
 
@@ -51,6 +52,7 @@ func live() {
 	go serveOceanRPC()
 	go subscribeMembership()
 	go heartbeat()
+	go dispatchHeartbeats()
 
 	// Wait for other nodes to come online
 	// Start the election timer
@@ -65,28 +67,10 @@ func heartbeat() {
 		if raft.Role == spec.LEADER {
 			// Send empty append entries to every member as goroutines
 			for PID := range self.MemberMap {
+				log.Println(&self.MemberMap)
+				log.Println(self.MemberMap)
 				if PID != self.PID {
-					// This runs the risk of our Raft state changing while iterating
-					// through the membership list, but it also means less overlapping reader locks
-					// that will permanently block writer locks
-					spec.SelfRWMutex.RLock()
-					args := raft.GetAppendEntriesArgs(&self)
-					spec.SelfRWMutex.RUnlock()
-
-					go func(PID int) {
-						if _, ok := self.MemberMap[PID]; !ok {
-							config.LogIf(
-								fmt.Sprintf("[HEARTBEATERR] Tried heartbeating to dead node [PID=%d].", PID),
-								config.C.LogHeartbeats,
-							)
-							return
-						}
-						r := CallAppendEntries(PID, args)
-						config.LogIf(
-							fmt.Sprintf("[LEAD] [HEARTBEAT->]: to [PID=%d]", PID),
-							(config.C.LogHeartbeats && r.Error != CONNERROR),
-						)
-					}(PID)
+					heartbeats <- PID
 				}
 			}
 
@@ -107,6 +91,30 @@ func heartbeat() {
 			}
 		}
 	}
+}
+
+// Check safety of heartbeat target and dispatch heartbeat goroutine
+func dispatchHeartbeats() {
+	for PID := range heartbeats {
+		args := raft.GetAppendEntriesArgs(&self)
+		log.Println("Goroutine count:", runtime.NumGoroutine())
+		if _, ok := self.MemberMap[PID]; !ok {
+			config.LogIf(
+				fmt.Sprintf("[HEARTBEATERR] Tried heartbeating to dead node [PID=%d].", PID),
+				config.C.LogHeartbeats,
+			)
+			return
+		} else {
+			go func(PID int) {
+				r := CallAppendEntries(PID, args)
+				config.LogIf(
+					fmt.Sprintf("[LEAD] [HEARTBEAT->]: to [PID=%d]", PID),
+					(config.C.LogHeartbeats && r.Error != CONNERROR),
+				)
+			}(PID)
+		}
+	}
+
 }
 
 // Periodically poll for membership information

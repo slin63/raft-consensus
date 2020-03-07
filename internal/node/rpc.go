@@ -81,7 +81,7 @@ func (f *Ocean) AppendEntries(a spec.AppendEntriesArgs, result *spec.Result) err
 			Error:   MISMATCHTERM,
 		}
 		config.LogIf(
-			fmt.Sprintf("[PUTENTRY] (1) Terms didn't match [(us) %d != (them) %d]", a.Term, raft.CurrentTerm),
+			fmt.Sprintf("[PUTENTRY] (1) Our term is greater. [(us) %d > (them) %d]", raft.CurrentTerm, a.Term),
 			config.C.LogAppendEntries,
 		)
 		return nil
