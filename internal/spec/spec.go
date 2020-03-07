@@ -6,6 +6,8 @@ import (
 	"net/rpc"
 	"sync"
 	"time"
+
+	"github.com/slin63/raft-consensus/internal/config"
 )
 
 // Concurrency primitives
@@ -63,7 +65,9 @@ func GetSelf(self *Self) {
 	if err != nil {
 		log.Fatal("RPC error:", err)
 	}
+	config.LogIf("[SELF]: PRE-LOCK Fetch membership information", config.C.LogMembership)
 	SelfRWMutex.Lock()
 	*self = reply
 	SelfRWMutex.Unlock()
+	config.LogIf("[SELF]: POST-LOCK Fetch membership information", config.C.LogMembership)
 }

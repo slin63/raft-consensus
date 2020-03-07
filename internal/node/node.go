@@ -65,13 +65,17 @@ func heartbeat() {
 			// Send empty append entries to every member as goroutines
 			for PID := range self.MemberMap {
 				if PID != self.PID {
-					go func(PID int) {
-						spec.SelfRWMutex.RLock()
-						CallAppendEntries(PID, raft.GetAppendEntriesArgs(&self))
-						spec.SelfRWMutex.RUnlock()
+					// This runs the risk of our Raft state changing while iterating
+					// through the membership list, but it also means less overlapping reader locks
+					// that will permanently block writer locks
+					spec.SelfRWMutex.RLock()
+					args := raft.GetAppendEntriesArgs(&self)
+					spec.SelfRWMutex.RUnlock()
 
+					go func(PID int) {
+						CallAppendEntries(PID, args)
 						config.LogIf(
-							fmt.Sprintf("[HEARTBEAT->]: [PID=%d]", PID),
+							fmt.Sprintf("[LEAD] [HEARTBEAT->]: to [PID=%d]", PID),
 							config.C.LogHeartbeats,
 						)
 					}(PID)
