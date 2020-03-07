@@ -66,6 +66,7 @@ func TestBecomeLeader(t *testing.T) {
 		Log: []string{"0", "1", "2"},
 	}
 	raft.CommitIndex = 2
+	raft.VotedFor = 555
 	self := Self{MemberMap: make(MemberMapT)}
 	self.MemberMap[1] = &MemberNode{}
 	self.MemberMap[2] = &MemberNode{}
@@ -73,6 +74,9 @@ func TestBecomeLeader(t *testing.T) {
 	raft.BecomeLeader(&self)
 	if raft.Role != LEADER {
 		t.Fatalf("Role not properly set leader")
+	}
+	if raft.VotedFor != NOCANDIDATE {
+		t.Fatalf("VotedFor not properly reset")
 	}
 	for _, idx := range raft.NextIndex {
 		if raft.CommitIndex+1 != idx {

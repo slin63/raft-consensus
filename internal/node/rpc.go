@@ -174,7 +174,9 @@ func (f *Ocean) RequestVote(a spec.RequestVoteArgs, result *spec.Result) error {
 
 	// Step down and update term if we receive a higher term
 	if a.Term > raft.CurrentTerm {
-		config.LogIf(fmt.Sprintf("[<-ELECTIONERR]: Their term is higher"), config.C.LogElections)
+		config.LogIf(
+			fmt.Sprintf("[<-ELECTIONERR]: [PID=%d] Received higher term [%d:%d]", a.CandidateId, a.Term, raft.CurrentTerm),
+			config.C.LogElections)
 		raft.CurrentTerm = a.Term
 		if raft.Role == spec.CANDIDATE {
 			close(endElection)

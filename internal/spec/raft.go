@@ -122,6 +122,7 @@ func (r *Raft) BecomeLeader(self *Self) {
 	config.LogIf(fmt.Sprintf("[CANDIDATE->LEADER] Becoming leader"), config.C.LogElections)
 	r.initVolatileState(self)
 	r.Role = LEADER
+	r.ResetElectionState(r.CurrentTerm)
 	r.ElectTimer.Stop()
 }
 

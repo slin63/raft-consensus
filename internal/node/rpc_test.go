@@ -17,6 +17,10 @@ func init() {
 	config.C.LogTimers = false
 }
 
+func resetCh() {
+	endElection = make(chan struct{})
+}
+
 // See that heartbeats are working
 func TestAppendEntriesHeartbeat(t *testing.T) {
 	raft = getRaft()
@@ -130,6 +134,7 @@ func TestAppendEntriesPut3(t *testing.T) {
 
 // Step down and update term if we receive a higher term
 func TestRequestVoteGreaterTerm(t *testing.T) {
+	resetCh()
 	raft = getRaft()
 	result := getResult()
 	result.Error = NONE
