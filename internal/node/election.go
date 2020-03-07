@@ -9,6 +9,7 @@ import (
 	"github.com/slin63/raft-consensus/internal/spec"
 )
 
+// TODO (03/07 @ 13:11): Need to test elections when everyone has the same election timeout timer so that we can assure that elections will still complete when they are concurrent candidates
 func InitiateElection() {
 	config.LogIf(fmt.Sprintf("[ELECTION->]: PRE-LOCK Starting election"), config.C.LogElections)
 	spec.RaftRWMutex.Lock()
@@ -39,7 +40,12 @@ func InitiateElection() {
 				config.LogIf(fmt.Sprintf("[ELECTION-X->]: End election signal received"), config.C.LogElections)
 				return
 			default:
-				client := connect(PID)
+				log.Printf("InitiateElection() trying to connect to PID %d", PID)
+				client, err := connect(PID)
+				if err != nil {
+					log.Printf("[CONNERROR] InitiateElection failed to connect to [PID=%d]. Aborting", PID)
+					return
+				}
 				defer client.Close()
 				args := &spec.RequestVoteArgs{
 					raft.CurrentTerm,

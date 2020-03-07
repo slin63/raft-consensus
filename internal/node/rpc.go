@@ -27,6 +27,7 @@ const (
 	ALREADYVOTED
 	OUTDATEDLOGTERM
 	OUTDATEDLOGLENGTH
+	CONNERROR
 )
 
 func serveOceanRPC() {
@@ -44,7 +45,12 @@ func serveOceanRPC() {
 // AppendEntries (client)
 // Invoked by leader to replicate log entries (§5.3); also used as heartbeat (§5.2).
 func CallAppendEntries(PID int, args *spec.AppendEntriesArgs) *spec.Result {
-	client := connect(PID)
+	log.Printf("CallAppendEntries() trying to connect to PID %d", PID)
+	client, err := connect(PID)
+	if err != nil {
+		log.Printf("[CONNERROR] CallAppendEntries failed to connect to [PID=%d]. Aborting", PID)
+		return &spec.Result{Success: false, Error: CONNERROR}
+	}
 	defer client.Close()
 
 	var result spec.Result
@@ -290,7 +296,7 @@ func appendEntriesUntilSuccess(raft *spec.Raft, PID int) {
 
 // Connect to some RPC server and return a pointer to the client
 // Retry some number of times if connection fails
-func connect(PID int) *rpc.Client {
+func connect(PID int) (*rpc.Client, error) {
 	node, ok := self.MemberMap[PID]
 	var client *rpc.Client
 	var err error
@@ -300,11 +306,11 @@ func connect(PID int) *rpc.Client {
 	for i := 0; i < config.C.RPCMaxRetries; i++ {
 		client, err = rpc.DialHTTP("tcp", node.IP+":"+config.C.RPCPort)
 		if err != nil {
-			log.Println("connect() dialing:", err)
+			log.Printf("[CONNERROR->] Failed to dial [PID=%d] [ERR=%v]", PID, err)
 			time.Sleep(time.Second * time.Duration(config.C.RPCRetryInterval))
 		} else {
 			break
 		}
 	}
-	return client
+	return client, err
 }

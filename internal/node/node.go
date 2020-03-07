@@ -18,6 +18,7 @@ var raft *spec.Raft
 // Membership layer state
 var self spec.Self
 
+// var heartbeats = make(chan h{})
 var endElection = make(chan struct{})
 var block = make(chan int, 1)
 
@@ -73,10 +74,11 @@ func heartbeat() {
 					spec.SelfRWMutex.RUnlock()
 
 					go func(PID int) {
-						CallAppendEntries(PID, args)
+						log.Printf("[SELFHEARTBEAT]: %v", self.MemberMap)
+						r := CallAppendEntries(PID, args)
 						config.LogIf(
 							fmt.Sprintf("[LEAD] [HEARTBEAT->]: to [PID=%d]", PID),
-							config.C.LogHeartbeats,
+							(config.C.LogHeartbeats && r.Error != CONNERROR),
 						)
 					}(PID)
 				}
