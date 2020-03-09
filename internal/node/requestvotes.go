@@ -84,3 +84,58 @@ func InitiateElection() {
 
 	}
 }
+
+func (f *Ocean) RequestVote(a spec.RequestVoteArgs, result *spec.Result) error {
+	config.LogIf(fmt.Sprintf("[<-ELECTION]: [ME=%d] RECEIVED RequestVote from %d", self.PID, a.CandidateId), config.C.LogElections)
+	spec.RaftRWMutex.Lock()
+	defer spec.RaftRWMutex.Unlock()
+	config.LogIf(fmt.Sprintf("[<-ELECTION]: [ME=%d] PROCESSING RequestVote from %d", self.PID, a.CandidateId), config.C.LogElections)
+
+	// Step down and update term if we receive a higher term
+	if a.Term > raft.CurrentTerm {
+		config.LogIf(
+			fmt.Sprintf("[<-ELECTIONERR]: [PID=%d] Received higher term [%d:%d]", a.CandidateId, a.Term, raft.CurrentTerm),
+			config.C.LogElections)
+		raft.CurrentTerm = a.Term
+		if raft.Role == spec.CANDIDATE {
+			close(endElection)
+		}
+		raft.Role = spec.FOLLOWER
+	}
+
+	// (1) S5.1 Fail if our term is greater
+	if raft.CurrentTerm > a.Term {
+		config.LogIf(fmt.Sprintf("[<-ELECTIONERR]: MISMATCHTERM"), config.C.LogElections)
+		*result = spec.Result{Term: raft.CurrentTerm, VoteGranted: false, Error: MISMATCHTERM}
+		return nil
+	}
+
+	// (2) S5.2, S5.4 Make sure we haven't already voted for someone else
+	if raft.VotedFor != spec.NOCANDIDATE && raft.VotedFor != a.CandidateId {
+		config.LogIf(fmt.Sprintf("[<-ELECTIONERR]: ALREADYVOTED [raft.VotedFor=%d]", raft.VotedFor), config.C.LogElections)
+		*result = spec.Result{Term: raft.CurrentTerm, VoteGranted: false, Error: ALREADYVOTED}
+		return nil
+	}
+
+	// Make sure candidate's log is at least as up-to-date as our log by
+	// (a) Comparing log terms and (b) log length
+	if a.LastLogTerm < spec.GetTerm(raft.GetLastEntry()) {
+		config.LogIf(fmt.Sprintf("[<-ELECTIONERR]: OUTDATEDLOGTERM"), config.C.LogElections)
+		*result = spec.Result{Term: raft.CurrentTerm, VoteGranted: false, Error: OUTDATEDLOGTERM}
+		return nil
+	} else if a.LastLogTerm == spec.GetTerm(raft.GetLastEntry()) {
+		if a.LastLogIndex < len(raft.Log)-1 {
+			config.LogIf(fmt.Sprintf("[<-ELECTIONERR]: OUTDATEDLOGLENGTH"), config.C.LogElections)
+			*result = spec.Result{Term: raft.CurrentTerm, VoteGranted: false, Error: OUTDATEDLOGLENGTH}
+			return nil
+		}
+	}
+
+	// If we made it to this point, the incoming log is as up-to-date as ours
+	// and we can safely grant our vote and reset our election timer.
+	raft.ResetElectTimer()
+	*result = spec.Result{Term: raft.CurrentTerm, VoteGranted: true}
+	config.LogIf(fmt.Sprintf("[<-ELECTION]: [ME=%d] GRANTED RequestVote for %d", self.PID, a.CandidateId), config.C.LogElections)
+
+	return nil
+}

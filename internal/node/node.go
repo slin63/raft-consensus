@@ -78,7 +78,7 @@ func heartbeat() {
                 }
             }
 
-            time.Sleep(time.Duration(config.C.HeartbeatInterval) * time.Millisecond)
+            time.Sleep(time.Duration(config.C.HeartbeatInterval) * time.Millisecond * time.Duration(config.C.Timescale))
         } else {
             // Watch for election timer timeouts
             select {

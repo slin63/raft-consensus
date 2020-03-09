@@ -94,7 +94,7 @@ type RequestVoteArgs struct {
 }
 
 func ElectTimeout() int64 {
-	return int64(rand.Intn(config.C.ElectTimeoutMax-config.C.ElectTimeoutMin) + config.C.ElectTimeoutMin)
+	return int64(rand.Intn(config.C.ElectTimeoutMax-config.C.ElectTimeoutMin)+config.C.ElectTimeoutMin) * int64(config.C.Timescale)
 }
 
 func (r *Raft) Init(self *Self) {

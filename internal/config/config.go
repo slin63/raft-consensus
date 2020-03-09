@@ -14,6 +14,7 @@ type configParam struct {
 	ElectTimeoutMin   int
 	ElectTimeoutMax   int
 	HeartbeatInterval int
+	Timescale         int
 	Quorum            float64
 
 	// Logging

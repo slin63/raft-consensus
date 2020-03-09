@@ -1,20 +1,24 @@
 {
     "Introducer": "fd-introducer",
     "ElectTimeoutMin": 750,
-    "ElectTimeoutMax": 1000,
+    "ElectTimeoutMax": 751,
     "HeartbeatInterval": 375,
+    "Timescale": 3,
     "Quorum": 0.7,
 
     "Prefix": "[RAFT]",
     "Logfile": "raft.log",
     "LogMembership": true,
     "LogGoroutines": true,
-    "LogHeartbeats": true,
-    "LogConnections": false,
-    "LogHeartbeatsLead": false,
+
+    "LogHeartbeats": false,
+    "LogHeartbeatsLead": true,
     "LogAppendEntries": true,
+
+    "LogConnections": false,
     "LogTimers": false,
     "LogElections": true,
+
 
     "RPCPort": "6004",
     "RPCMaxRetries": 3,

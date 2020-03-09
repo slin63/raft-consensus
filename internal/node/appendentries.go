@@ -2,14 +2,9 @@
 package node
 
 import (
-	"errors"
 	"fmt"
 	"log"
 	"math"
-	"net"
-	"net/http"
-	"net/rpc"
-	"time"
 
 	"github.com/slin63/raft-consensus/internal/config"
 	"github.com/slin63/raft-consensus/internal/spec"
@@ -30,18 +25,6 @@ const (
 	OUTDATEDLOGLENGTH
 	CONNERROR
 )
-
-func serveOceanRPC() {
-	oc := new(Ocean)
-	rpc.Register(oc)
-	rpc.HandleHTTP()
-	l, e := net.Listen("tcp", ":"+config.C.RPCPort)
-	if e != nil {
-		log.Fatal("[ERROR] serveOceanRPC():", e)
-	}
-	log.Println("[RPC] serveOceanRPCs")
-	http.Serve(l, nil)
-}
 
 // AppendEntries (client)
 // Invoked by leader to replicate log entries (§5.3); also used as heartbeat (§5.2).
@@ -174,61 +157,6 @@ func (f *Ocean) AppendEntries(a spec.AppendEntriesArgs, result *spec.Result) err
 	return nil
 }
 
-func (f *Ocean) RequestVote(a spec.RequestVoteArgs, result *spec.Result) error {
-	config.LogIf(fmt.Sprintf("[<-ELECTION]: RECEIVED RequestVote from %d", a.CandidateId), config.C.LogElections)
-	spec.RaftRWMutex.Lock()
-	defer spec.RaftRWMutex.Unlock()
-	config.LogIf(fmt.Sprintf("[<-ELECTION]: PROCESSING RequestVote from %d", a.CandidateId), config.C.LogElections)
-
-	// Step down and update term if we receive a higher term
-	if a.Term > raft.CurrentTerm {
-		config.LogIf(
-			fmt.Sprintf("[<-ELECTIONERR]: [PID=%d] Received higher term [%d:%d]", a.CandidateId, a.Term, raft.CurrentTerm),
-			config.C.LogElections)
-		raft.CurrentTerm = a.Term
-		if raft.Role == spec.CANDIDATE {
-			close(endElection)
-		}
-		raft.Role = spec.FOLLOWER
-	}
-
-	// (1) S5.1 Fail if our term is greater
-	if raft.CurrentTerm > a.Term {
-		config.LogIf(fmt.Sprintf("[<-ELECTIONERR]: MISMATCHTERM"), config.C.LogElections)
-		*result = spec.Result{Term: raft.CurrentTerm, VoteGranted: false, Error: MISMATCHTERM}
-		return nil
-	}
-
-	// (2) S5.2, S5.4 Make sure we haven't already voted for someone else
-	if raft.VotedFor != spec.NOCANDIDATE && raft.VotedFor != a.CandidateId {
-		config.LogIf(fmt.Sprintf("[<-ELECTIONERR]: ALREADYVOTED [raft.VotedFor=%d]", raft.VotedFor), config.C.LogElections)
-		*result = spec.Result{Term: raft.CurrentTerm, VoteGranted: false, Error: ALREADYVOTED}
-		return nil
-	}
-
-	// Make sure candidate's log is at least as up-to-date as our log by
-	// (a) Comparing log terms and (b) log length
-	if a.LastLogTerm < spec.GetTerm(raft.GetLastEntry()) {
-		config.LogIf(fmt.Sprintf("[<-ELECTIONERR]: OUTDATEDLOGTERM"), config.C.LogElections)
-		*result = spec.Result{Term: raft.CurrentTerm, VoteGranted: false, Error: OUTDATEDLOGTERM}
-		return nil
-	} else if a.LastLogTerm == spec.GetTerm(raft.GetLastEntry()) {
-		if a.LastLogIndex < len(raft.Log)-1 {
-			config.LogIf(fmt.Sprintf("[<-ELECTIONERR]: OUTDATEDLOGLENGTH"), config.C.LogElections)
-			*result = spec.Result{Term: raft.CurrentTerm, VoteGranted: false, Error: OUTDATEDLOGLENGTH}
-			return nil
-		}
-	}
-
-	// If we made it to this point, the incoming log is as up-to-date as ours
-	// and we can safely grant our vote and reset our election timer.
-	raft.ResetElectTimer()
-	*result = spec.Result{Term: raft.CurrentTerm, VoteGranted: true}
-	config.LogIf(fmt.Sprintf("[<-ELECTION]: GRANTED RequestVote for %d", a.CandidateId), config.C.LogElections)
-
-	return nil
-}
-
 // Receive entries from a client to be added to our log
 // It is up to our downstream client to to determine whether
 // or not it's a valid entry
@@ -294,43 +222,4 @@ func appendEntriesUntilSuccess(raft *spec.Raft, PID int) {
 		}
 	}
 	log.Printf("[PUTENTRY->]: [PID=%d]", PID)
-}
-
-// Connect to some RPC server and return a pointer to the client
-// Retry some number of times if connection fails
-func connect(PID int) (*rpc.Client, error) {
-	var client *rpc.Client
-	var err error
-	node := self.MemberMap[PID]
-	c := make(chan *rpc.Client)
-
-	// Timeout if dialing takes too long. (https://github.com/golang/go/wiki/Timeouts)
-	go func() {
-		for i := 0; i < config.C.RPCMaxRetries; i++ {
-			client, err := rpc.DialHTTP("tcp", node.IP+":"+config.C.RPCPort)
-			if err != nil {
-				_, ok := self.MemberMap[PID]
-				if !ok {
-					config.LogIf(fmt.Sprintf("[CONNERROR-X] Was attempting to dial dead PID. [PID=%d] [ERR=%v]", PID, err), config.C.LogConnections)
-					return
-				}
-				config.LogIf(fmt.Sprintf("[CONNERROR->] Failed to dial [PID=%d] [ERR=%v]", PID, err), config.C.LogConnections)
-				time.Sleep(time.Second * time.Duration(config.C.RPCRetryInterval))
-			} else {
-				c <- client
-				return
-			}
-		}
-	}()
-
-	select {
-	// Received a response. Handle error appropriately
-	case client = <-c:
-	// Timed out waiting for a response. Wait and try again.
-	case <-time.After(time.Duration(config.C.RPCTimeout) * time.Second):
-		config.LogIf(fmt.Sprintf("[CONNERROR-X] Timed out dialing %d", PID), config.C.LogConnections)
-		err = errors.New(fmt.Sprintf("Timed out waiting for response."))
-	}
-
-	return client, err
 }
