@@ -12,10 +12,7 @@ import (
 // TODO (03/07 @ 13:11): Need to test elections when everyone has the same election timeout timer so that we can assure that elections will still complete when they are concurrent candidates
 // Initiate an election. Return true if we won the election, false if we did not
 func InitiateElection() bool {
-	config.LogIf(fmt.Sprintf("[ELECTION->]: PRE-LOCK Starting election"), config.C.LogElections)
-	spec.SelfRWMutex.RLock()
-	defer spec.SelfRWMutex.RUnlock()
-	config.LogIf(fmt.Sprintf("[ELECTION->]: POST-LOCK Starting election"), config.C.LogElections)
+	config.LogIf(fmt.Sprintf("[ELECTION->]: Starting election"), config.C.LogElections)
 
 	// S5.2 On conversion to candidate
 	raft.Role = spec.CANDIDATE
@@ -27,13 +24,13 @@ func InitiateElection() bool {
 
 	results := make(chan *spec.Result)
 	// Send out RequestVote RPCs to all other nodes
+	spec.SelfRWMutex.RLock()
 	for PID := range self.MemberMap {
 		if PID == self.PID {
 			continue
 		}
 
 		go func(PID int) {
-			// log.Printf("InitiateElection() trying to connect to PID %d", PID)
 			client, err := connect(PID)
 			if err != nil {
 				config.LogIf(fmt.Sprintf("[CONNERROR] InitiateElection failed to connect to [PID=%d]. Aborting", PID), config.C.LogConnections)
@@ -54,13 +51,15 @@ func InitiateElection() bool {
 			results <- &result
 		}(PID)
 	}
+	spec.SelfRWMutex.RUnlock()
+	config.LogIf(fmt.Sprintf("[ELECTION->]: Starting election 2"), config.C.LogElections)
 
 	// Process results as they come in, become the leader if we receive enough votes
 	for {
 		select {
 		case r := <-results:
 			spec.RaftRWMutex.Lock()
-			config.LogIf(fmt.Sprintf("[CANDIDATE]: Processing results"), config.C.LogElections)
+			config.LogIf(fmt.Sprintf("[CANDIDATE]: Processing results. %d/%d needed", votes, quorum), config.C.LogElections)
 			// Secede to nodes with higher terms
 			if r.Term > raft.CurrentTerm {
 				config.LogIf(fmt.Sprintf("[ELECTION-X]: Found node with higher term. Stepping down and resetting election state."), config.C.LogElections)
@@ -85,18 +84,12 @@ func InitiateElection() bool {
 			raft.ElectTimer.Stop()
 			return false
 			spec.RaftRWMutex.Unlock()
-
 		}
-
 	}
+
 }
 
 func (f *Ocean) RequestVote(a spec.RequestVoteArgs, result *spec.Result) error {
-	// config.LogIf(fmt.Sprintf("[<-ELECTION]: [ME=%d] RECEIVED RequestVote from %d", self.PID, a.CandidateId), config.C.LogElections)
-	spec.RaftRWMutex.Lock()
-	defer spec.RaftRWMutex.Unlock()
-	// config.LogIf(fmt.Sprintf("[<-ELECTION]: [ME=%d] PROCESSING RequestVote from %d", self.PID, a.CandidateId), config.C.LogElections)
-
 	// Step down and update term if we receive a higher term
 	if a.Term > raft.CurrentTerm {
 		if raft.Role == spec.CANDIDATE {
@@ -107,8 +100,10 @@ func (f *Ocean) RequestVote(a spec.RequestVoteArgs, result *spec.Result) error {
 				config.C.LogElections)
 			endElection <- a.Term
 		} else {
+			spec.RaftRWMutex.Lock()
 			raft.CurrentTerm = a.Term
 			raft.Role = spec.FOLLOWER
+			spec.RaftRWMutex.Unlock()
 		}
 
 	}
@@ -145,7 +140,9 @@ func (f *Ocean) RequestVote(a spec.RequestVoteArgs, result *spec.Result) error {
 	// and we can safely grant our vote and reset our election timer.
 	raft.ResetElectTimer()
 	*result = spec.Result{Term: raft.CurrentTerm, VoteGranted: true}
+	spec.RaftRWMutex.Lock()
 	raft.VotedFor = a.CandidateId
+	spec.RaftRWMutex.Unlock()
 	config.LogIf(fmt.Sprintf("[<-ELECTION]: [ME=%d] GRANTED RequestVote for %d", self.PID, a.CandidateId), config.C.LogElections)
 
 	return nil
