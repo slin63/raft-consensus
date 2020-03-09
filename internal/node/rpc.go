@@ -9,7 +9,6 @@ import (
 	"net"
 	"net/http"
 	"net/rpc"
-	"runtime"
 	"time"
 
 	"github.com/slin63/raft-consensus/internal/config"
@@ -47,10 +46,10 @@ func serveOceanRPC() {
 // AppendEntries (client)
 // Invoked by leader to replicate log entries (§5.3); also used as heartbeat (§5.2).
 func CallAppendEntries(PID int, args *spec.AppendEntriesArgs) *spec.Result {
-	log.Printf("CallAppendEntries() trying to connect to PID %d", PID)
+	config.LogIf(fmt.Sprintf("CallAppendEntries() trying to connect to PID %d", PID), config.C.LogConnections)
 	client, err := connect(PID)
 	if err != nil {
-		log.Printf("[CONNERROR] CallAppendEntries failed to connect to [PID=%d]. Aborting", PID)
+		config.LogIf(fmt.Sprintf("[CONNERROR] CallAppendEntries failed to connect to [PID=%d]. Aborting", PID), config.C.LogConnections)
 		return &spec.Result{Success: false, Error: CONNERROR}
 	}
 	defer client.Close()
@@ -64,7 +63,7 @@ func CallAppendEntries(PID int, args *spec.AppendEntriesArgs) *spec.Result {
 
 func (f *Ocean) AppendEntries(a spec.AppendEntriesArgs, result *spec.Result) error {
 	spec.RaftRWMutex.Lock()
-	log.Println("AppendEntries( )Goroutine count:", runtime.NumGoroutine())
+	// log.Println("AppendEntries( )Goroutine count:", runtime.NumGoroutine())
 	defer spec.RaftRWMutex.Unlock()
 
 	// (0) If their term is greater, update our term and convert to follower
@@ -301,6 +300,7 @@ func appendEntriesUntilSuccess(raft *spec.Raft, PID int) {
 // Retry some number of times if connection fails
 func connect(PID int) (*rpc.Client, error) {
 	var client *rpc.Client
+	var err error
 	node := self.MemberMap[PID]
 	c := make(chan *rpc.Client)
 
@@ -308,13 +308,14 @@ func connect(PID int) (*rpc.Client, error) {
 	go func() {
 		for i := 0; i < config.C.RPCMaxRetries; i++ {
 			client, err := rpc.DialHTTP("tcp", node.IP+":"+config.C.RPCPort)
-			log.Printf("Finished dialing %d", PID)
 			if err != nil {
 				_, ok := self.MemberMap[PID]
 				if !ok {
-					log.Printf("[CONNERROR-X] Was attempting to dial dead PID. [PID=%d] [ERR=%v]", PID, err)
+					config.LogIf(fmt.Sprintf("[CONNERROR-X] Was attempting to dial dead PID. [PID=%d] [ERR=%v]", PID, err), config.C.LogConnections)
+					return
 				}
-				log.Printf("[CONNERROR->] Failed to dial [PID=%d] [ERR=%v]", PID, err)
+				config.LogIf(fmt.Sprintf("[CONNERROR->] Failed to dial [PID=%d] [ERR=%v]", PID, err), config.C.LogConnections)
+				time.Sleep(time.Second * time.Duration(config.C.RPCRetryInterval))
 			} else {
 				c <- client
 				return
@@ -327,9 +328,9 @@ func connect(PID int) (*rpc.Client, error) {
 	case client = <-c:
 	// Timed out waiting for a response. Wait and try again.
 	case <-time.After(time.Duration(config.C.RPCTimeout) * time.Second):
-		log.Printf("Timed out dialing %d", PID)
+		config.LogIf(fmt.Sprintf("[CONNERROR-X] Timed out dialing %d", PID), config.C.LogConnections)
+		err = errors.New(fmt.Sprintf("Timed out waiting for response."))
 	}
 
-	err := errors.Unwrap(fmt.Errorf("Timed out waiting for response."))
 	return client, err
 }

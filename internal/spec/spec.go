@@ -2,6 +2,7 @@
 package spec
 
 import (
+	"fmt"
 	"log"
 	"net/rpc"
 	"sync"
@@ -65,9 +66,6 @@ func GetSelf(self *Self) {
 	if err != nil {
 		log.Fatal("RPC error:", err)
 	}
-	config.LogIf("[SELF]: PRE-LOCK Fetch membership information", config.C.LogMembership)
-	SelfRWMutex.Lock()
 	*self = reply
-	SelfRWMutex.Unlock()
-	config.LogIf("[SELF]: POST-LOCK Fetch membership information", config.C.LogMembership)
+	config.LogIf(fmt.Sprintf("[SELF]: Updated membership"), config.C.LogMembership)
 }

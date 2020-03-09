@@ -8,14 +8,16 @@
     "Prefix": "[RAFT]",
     "Logfile": "raft.log",
     "LogMembership": true,
-    "LogHeartbeats": false,
-    "LogHeartbeatsLead": true,
+    "LogGoroutines": true,
+    "LogHeartbeats": true,
+    "LogConnections": false,
+    "LogHeartbeatsLead": false,
     "LogAppendEntries": true,
     "LogTimers": false,
     "LogElections": true,
 
     "RPCPort": "6004",
     "RPCMaxRetries": 3,
-    "RPCTimeout": 10,
+    "RPCTimeout": 3,
     "RPCRetryInterval": 1
 }

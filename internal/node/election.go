@@ -35,10 +35,10 @@ func InitiateElection() {
 		}
 
 		go func(PID int) {
-			log.Printf("InitiateElection() trying to connect to PID %d", PID)
+			// log.Printf("InitiateElection() trying to connect to PID %d", PID)
 			client, err := connect(PID)
 			if err != nil {
-				log.Printf("[CONNERROR] InitiateElection failed to connect to [PID=%d]. Aborting", PID)
+				config.LogIf(fmt.Sprintf("[CONNERROR] InitiateElection failed to connect to [PID=%d]. Aborting", PID), config.C.LogConnections)
 				return
 			}
 			defer client.Close()
@@ -50,12 +50,9 @@ func InitiateElection() {
 			}
 
 			var result spec.Result
-			fmt.Println("over here")
 			if err := client.Call("Ocean.RequestVote", args, &result); err != nil {
 				log.Fatal("Ocean.RequestVote failed:", err)
 			}
-			fmt.Println("over here 2 electric boogaloo")
-
 			results <- &result
 		}(PID)
 	}
