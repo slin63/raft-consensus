@@ -124,8 +124,8 @@ func (r *Raft) BecomeLeader(self *Self) {
 		config.C.LogElections,
 	)
 	r.initVolatileState(self)
-	r.Role = LEADER
 	r.ResetElectionState(r.CurrentTerm)
+	r.Role = LEADER
 	r.ResetElectTimer()
 	r.ElectTimer.Stop()
 }

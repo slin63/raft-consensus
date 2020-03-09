@@ -78,7 +78,6 @@ func heartbeat() {
                     heartbeats <- PID
                 }
             }
-
             time.Sleep(time.Duration(config.C.HeartbeatInterval) * time.Millisecond * time.Duration(config.C.Timescale))
         } else {
             // Watch for election timer timeouts
@@ -102,7 +101,6 @@ func heartbeat() {
 func dispatchHeartbeats() {
     for PID := range heartbeats {
         args := raft.GetAppendEntriesArgs(&self)
-        // log.Println("dispatchHeartbeats() Goroutine count:", runtime.NumGoroutine())
         if _, ok := self.MemberMap[PID]; !ok {
             config.LogIf(
                 fmt.Sprintf("[HEARTBEATERR] Tried heartbeating to dead node [PID=%d].", PID),

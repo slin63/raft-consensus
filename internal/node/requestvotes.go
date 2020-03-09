@@ -85,6 +85,7 @@ func InitiateElection() bool {
 			raft.ElectTimer.Stop()
 			return false
 		}
+
 	}
 }
 

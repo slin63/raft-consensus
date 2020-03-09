@@ -11,7 +11,7 @@
     "LogMembership": false,
     "LogGoroutines": false,
 
-    "LogHeartbeats": false,
+    "LogHeartbeats": true,
     "LogHeartbeatsLead": true,
     "LogAppendEntries": true,
 
