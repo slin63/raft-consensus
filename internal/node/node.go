@@ -47,9 +47,6 @@ func Live() {
     raft.Init(&self)
 
     spec.ReportOnline(raft.ElectTimeout)
-    if config.C.LogGoroutines {
-        go logGoroutines()
-    }
     go live()
     <-block
 }
@@ -59,6 +56,9 @@ func live() {
     go subscribeMembership(membershipUpdate)
     go heartbeat()
     go dispatchHeartbeats()
+    if config.C.LogGoroutines {
+        go logGoroutines()
+    }
 
     // Wait for other nodes to come online
     // Start the election timer
@@ -72,6 +72,7 @@ func heartbeat() {
     for {
         if raft.Role == spec.LEADER {
             // Send empty append entries to every member as goroutines
+            log.Printf("definitely harvey")
             for PID := range self.MemberMap {
                 if PID != self.PID {
                     heartbeats <- PID

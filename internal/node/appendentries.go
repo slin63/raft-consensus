@@ -53,7 +53,11 @@ func (f *Ocean) AppendEntries(a spec.AppendEntriesArgs, result *spec.Result) err
 	if a.Term >= raft.CurrentTerm {
 		raft.CurrentTerm = a.Term
 		if raft.Role == spec.CANDIDATE {
-			close(endElection)
+			config.LogIf(
+				fmt.Sprintf("[<-APPENDENTRIES]: [ME=%d] [TERM=%d] Received AppendEntries while role=candidate. Ending election!",
+					self.PID, raft.CurrentTerm),
+				config.C.LogElections)
+			endElection <- struct{}{}
 		}
 		raft.Role = spec.FOLLOWER
 	}
@@ -66,7 +70,7 @@ func (f *Ocean) AppendEntries(a spec.AppendEntriesArgs, result *spec.Result) err
 			Error:   MISMATCHTERM,
 		}
 		config.LogIf(
-			fmt.Sprintf("[PUTENTRY] (1) Our term is greater. [(us) %d > (them) %d]", raft.CurrentTerm, a.Term),
+			fmt.Sprintf("[APPENDENTRIES] (1) Our term is greater. [(us) %d > (them) %d]", raft.CurrentTerm, a.Term),
 			config.C.LogAppendEntries,
 		)
 		return nil
@@ -75,7 +79,7 @@ func (f *Ocean) AppendEntries(a spec.AppendEntriesArgs, result *spec.Result) err
 	// (2) Fail if previous entry doesn't exist
 	if a.PrevLogIndex >= len(raft.Log) {
 		config.LogIf(
-			fmt.Sprintf("[PUTENTRY] (2) raft.Log[PrevLogIndex=%d] does not exist. [raft.Log=%v]", a.PrevLogIndex, raft.Log),
+			fmt.Sprintf("[APPENDENTRIES] (2) raft.Log[PrevLogIndex=%d] does not exist. [raft.Log=%v]", a.PrevLogIndex, raft.Log),
 			config.C.LogAppendEntries,
 		)
 		*result = spec.Result{
@@ -90,7 +94,7 @@ func (f *Ocean) AppendEntries(a spec.AppendEntriesArgs, result *spec.Result) err
 	if spec.GetTerm(&raft.Log[a.PrevLogIndex]) != a.PrevLogTerm {
 		config.LogIf(
 			fmt.Sprintf(
-				"[PUTENTRY] (2) Log terms at index %d didn't match [(us) %d != (them) %d]",
+				"[APPENDENTRIES] (2) Log terms at index %d didn't match [(us) %d != (them) %d]",
 				a.PrevLogIndex,
 				spec.GetTerm(&raft.Log[a.PrevLogIndex]),
 				a.PrevLogTerm,
@@ -121,7 +125,7 @@ func (f *Ocean) AppendEntries(a spec.AppendEntriesArgs, result *spec.Result) err
 		// Trim our logs up to the index of the term inconsistency
 		if inconsistency != 0 {
 			config.LogIf(
-				fmt.Sprintf("[PUTENTRY] (3) Inconsistency in our logs, trimming to %d from original len %d", inconsistency, len(raft.Log)),
+				fmt.Sprintf("[APPENDENTRIES] (3) Inconsistency in our logs, trimming to %d from original len %d", inconsistency, len(raft.Log)),
 				config.C.LogAppendEntries,
 			)
 			raft.Log = raft.Log[:inconsistency]
@@ -136,7 +140,7 @@ func (f *Ocean) AppendEntries(a spec.AppendEntriesArgs, result *spec.Result) err
 	if a.LeaderCommit > raft.CommitIndex {
 		raft.CommitIndex = int(math.Min(float64(a.LeaderCommit), float64(len(raft.Log)-1)))
 		config.LogIf(
-			fmt.Sprintf("[PUTENTRY] (5) New commit index = %d", raft.CommitIndex),
+			fmt.Sprintf("[APPENDENTRIES] (5) New commit index = %d", raft.CommitIndex),
 			config.C.LogAppendEntries,
 		)
 	}
@@ -145,13 +149,10 @@ func (f *Ocean) AppendEntries(a spec.AppendEntriesArgs, result *spec.Result) err
 
 	// If Entries is empty, this is a heartbeat.
 	if len(a.Entries) == 0 {
-		raft.ResetElectionState(a.Term)
 		config.LogIf("[<-HEARTBEAT]", config.C.LogHeartbeats)
-		if raft.Role == spec.CANDIDATE {
-			close(endElection)
-		}
+		raft.ResetElectTimer()
 	} else {
-		log.Printf("[<-PUTENTRY]: [PID=%d] [RESULT=%v] [LOGS=%v]", self.PID, *result, raft.Log)
+		log.Printf("[<-APPENDENTRIES]: [PID=%d] [RESULT=%v] [LOGS=%v]", self.PID, *result, raft.Log)
 	}
 
 	return nil

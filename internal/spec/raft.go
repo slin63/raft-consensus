@@ -113,16 +113,20 @@ func (r *Raft) Init(self *Self) {
 func (r *Raft) ResetElectionState(term int) {
 	r.CurrentTerm = term
 	r.VotedFor = NOCANDIDATE
-	r.ResetElectTimer()
+	r.Role = FOLLOWER
 }
 
 // On winning election, change state to leader and update
 // leader specific volatile state
 func (r *Raft) BecomeLeader(self *Self) {
-	config.LogIf(fmt.Sprintf("[CANDIDATE->LEADER] Becoming leader"), config.C.LogElections)
+	config.LogIf(
+		fmt.Sprintf("[CANDIDATE->LEADER] [ME=%d] [TERM=%d] Becoming leader", self.PID, r.CurrentTerm),
+		config.C.LogElections,
+	)
 	r.initVolatileState(self)
 	r.Role = LEADER
 	r.ResetElectionState(r.CurrentTerm)
+	r.ResetElectTimer()
 	r.ElectTimer.Stop()
 }
 

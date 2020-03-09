@@ -8,8 +8,8 @@
 
     "Prefix": "[RAFT]",
     "Logfile": "raft.log",
-    "LogMembership": true,
-    "LogGoroutines": true,
+    "LogMembership": false,
+    "LogGoroutines": false,
 
     "LogHeartbeats": false,
     "LogHeartbeatsLead": true,
