@@ -300,42 +300,36 @@ func appendEntriesUntilSuccess(raft *spec.Raft, PID int) {
 // Connect to some RPC server and return a pointer to the client
 // Retry some number of times if connection fails
 func connect(PID int) (*rpc.Client, error) {
-	node, ok := self.MemberMap[PID]
 	var client *rpc.Client
-	var err error
-	if !ok {
-		log.Fatalf("[PID=%d] member not found.", PID)
-	}
-	for i := 0; i < config.C.RPCMaxRetries; i++ {
-		// Timeout if dialing takes too long. (https://github.com/golang/go/wiki/Timeouts)
-		c := make(chan struct{})
-		go func(client *rpc.Client, err *error) {
-			client, *err = rpc.DialHTTP("tcp", node.IP+":"+config.C.RPCPort)
-			log.Printf("Finished dialing")
-			c <- struct{}{}
-		}(client, &err)
+	node := self.MemberMap[PID]
+	c := make(chan *rpc.Client)
 
-		select {
-		// Received a response. Handle error appropriately
-		case <-c:
+	// Timeout if dialing takes too long. (https://github.com/golang/go/wiki/Timeouts)
+	go func() {
+		for i := 0; i < config.C.RPCMaxRetries; i++ {
+			client, err := rpc.DialHTTP("tcp", node.IP+":"+config.C.RPCPort)
+			log.Printf("Finished dialing %d", PID)
 			if err != nil {
-				_, ok = self.MemberMap[PID]
+				_, ok := self.MemberMap[PID]
 				if !ok {
 					log.Printf("[CONNERROR-X] Was attempting to dial dead PID. [PID=%d] [ERR=%v]", PID, err)
-					return client, err
 				}
 				log.Printf("[CONNERROR->] Failed to dial [PID=%d] [ERR=%v]", PID, err)
-				time.Sleep(time.Second * time.Duration(config.C.RPCRetryInterval))
 			} else {
-				break
+				c <- client
+				return
 			}
-		// Timed out waiting for a response. Wait and try again.
-		case <-time.After(time.Duration(config.C.RPCTimeout) * time.Second):
-			log.Printf("Timed out dialing %d", PID)
-			time.Sleep(time.Second * time.Duration(config.C.RPCRetryInterval))
 		}
+	}()
+
+	select {
+	// Received a response. Handle error appropriately
+	case client = <-c:
+	// Timed out waiting for a response. Wait and try again.
+	case <-time.After(time.Duration(config.C.RPCTimeout) * time.Second):
+		log.Printf("Timed out dialing %d", PID)
 	}
 
-	err = errors.Unwrap(fmt.Errorf("Timed out waiting for response."))
+	err := errors.Unwrap(fmt.Errorf("Timed out waiting for response."))
 	return client, err
 }
