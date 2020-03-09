@@ -1,7 +1,7 @@
 {
     "Introducer": "fd-introducer",
     "ElectTimeoutMin": 750,
-    "ElectTimeoutMax": 1500,
+    "ElectTimeoutMax": 751,
     "HeartbeatInterval": 375,
     "Timescale": 1,
     "Quorum": 0.6,

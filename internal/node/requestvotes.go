@@ -48,7 +48,9 @@ func InitiateElection() bool {
 			if err := client.Call("Ocean.RequestVote", args, &result); err != nil {
 				log.Fatal("Ocean.RequestVote failed:", err)
 			}
+			log.Printf("hey look at me")
 			results <- &result
+			log.Printf("hey look at me i'm blocking")
 		}(PID)
 	}
 	spec.SelfRWMutex.RUnlock()
@@ -82,11 +84,13 @@ func InitiateElection() bool {
 			config.LogIf(fmt.Sprintf("[ELECTION-X]: End election signal received. Resetting election state. New [TERM=%d]", t), config.C.LogElections)
 			raft.ResetElectionState(t)
 			raft.ElectTimer.Stop()
-			return false
 			spec.RaftRWMutex.Unlock()
+
+			return false
 		}
 	}
-
+	config.LogIf(fmt.Sprintf("[ELECTION->]: Starting election 3"), config.C.LogElections)
+	return false
 }
 
 func (f *Ocean) RequestVote(a spec.RequestVoteArgs, result *spec.Result) error {
