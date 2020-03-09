@@ -12,8 +12,6 @@ import (
 // TODO (03/07 @ 13:11): Need to test elections when everyone has the same election timeout timer so that we can assure that elections will still complete when they are concurrent candidates
 // Initiate an election. Return true if we won the election, false if we did not
 func InitiateElection() bool {
-	config.LogIf(fmt.Sprintf("[ELECTION->]: Starting election"), config.C.LogElections)
-
 	// S5.2 On conversion to candidate
 	raft.Role = spec.CANDIDATE
 	raft.CurrentTerm += 1
@@ -21,6 +19,8 @@ func InitiateElection() bool {
 	votes := 1
 	quorum := spec.GetQuorum(&self)
 	raft.ResetElectTimer()
+
+	config.LogIf(fmt.Sprintf("[ELECTION->]: Starting election [TERM=%d]", raft.CurrentTerm), config.C.LogElections)
 
 	results := make(chan *spec.Result)
 	// Send out RequestVote RPCs to all other nodes
