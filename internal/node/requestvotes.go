@@ -13,8 +13,6 @@ import (
 // Initiate an election. Return true if we won the election, false if we did not
 func InitiateElection() bool {
 	config.LogIf(fmt.Sprintf("[ELECTION->]: PRE-LOCK Starting election"), config.C.LogElections)
-	spec.RaftRWMutex.Lock()
-	defer spec.RaftRWMutex.Unlock()
 	spec.SelfRWMutex.RLock()
 	defer spec.SelfRWMutex.RUnlock()
 	config.LogIf(fmt.Sprintf("[ELECTION->]: POST-LOCK Starting election"), config.C.LogElections)
@@ -61,12 +59,12 @@ func InitiateElection() bool {
 	for {
 		select {
 		case r := <-results:
+			spec.RaftRWMutex.Lock()
 			config.LogIf(fmt.Sprintf("[CANDIDATE]: Processing results"), config.C.LogElections)
 			// Secede to nodes with higher terms
 			if r.Term > raft.CurrentTerm {
-				raft.CurrentTerm = r.Term
 				config.LogIf(fmt.Sprintf("[ELECTION-X]: Found node with higher term. Stepping down and resetting election state."), config.C.LogElections)
-				raft.ResetElectionState(raft.CurrentTerm)
+				raft.ResetElectionState(r.Term)
 				raft.ElectTimer.Stop()
 				return false
 			}
@@ -78,12 +76,16 @@ func InitiateElection() bool {
 					return true
 				}
 			}
-		case <-endElection:
+			spec.RaftRWMutex.Unlock()
+		case t := <-endElection:
 			// The election is over. Stop our timer and reset election state to that of a follower.
-			config.LogIf(fmt.Sprintf("[ELECTION-X]: End election signal received. Resetting election state."), config.C.LogElections)
-			raft.ResetElectionState(raft.CurrentTerm)
+			spec.RaftRWMutex.Lock()
+			config.LogIf(fmt.Sprintf("[ELECTION-X]: End election signal received. Resetting election state. New [TERM=%d]", t), config.C.LogElections)
+			raft.ResetElectionState(t)
 			raft.ElectTimer.Stop()
 			return false
+			spec.RaftRWMutex.Unlock()
+
 		}
 
 	}
@@ -97,16 +99,18 @@ func (f *Ocean) RequestVote(a spec.RequestVoteArgs, result *spec.Result) error {
 
 	// Step down and update term if we receive a higher term
 	if a.Term > raft.CurrentTerm {
-		raft.CurrentTerm = a.Term
 		if raft.Role == spec.CANDIDATE {
 			config.LogIf(
 				fmt.Sprintf(
 					"[<-ELECTIONERR]: [ME=%d] [TERM=%d] Received RequestVote with higher term [%d:%d]. Ending election!",
-					a.CandidateId, a.Term, self.PID, raft.CurrentTerm),
+					self.PID, raft.CurrentTerm, a.Term, raft.CurrentTerm),
 				config.C.LogElections)
-			endElection <- struct{}{}
+			endElection <- a.Term
+		} else {
+			raft.CurrentTerm = a.Term
+			raft.Role = spec.FOLLOWER
 		}
-		raft.Role = spec.FOLLOWER
+
 	}
 
 	// (1) S5.1 Fail if our term is greater
@@ -116,8 +120,8 @@ func (f *Ocean) RequestVote(a spec.RequestVoteArgs, result *spec.Result) error {
 		return nil
 	}
 
-	// (2) S5.2, S5.4 Make sure we haven't already voted for someone else
-	if raft.VotedFor != spec.NOCANDIDATE && raft.VotedFor != a.CandidateId {
+	// (2) S5.2, S5.4 Make sure we haven't already voted for someone else or for this PID
+	if raft.VotedFor != spec.NOCANDIDATE {
 		config.LogIf(fmt.Sprintf("[<-ELECTIONERR]: ALREADYVOTED [raft.VotedFor=%d]", raft.VotedFor), config.C.LogElections)
 		*result = spec.Result{Term: raft.CurrentTerm, VoteGranted: false, Error: ALREADYVOTED}
 		return nil
@@ -141,6 +145,7 @@ func (f *Ocean) RequestVote(a spec.RequestVoteArgs, result *spec.Result) error {
 	// and we can safely grant our vote and reset our election timer.
 	raft.ResetElectTimer()
 	*result = spec.Result{Term: raft.CurrentTerm, VoteGranted: true}
+	raft.VotedFor = a.CandidateId
 	config.LogIf(fmt.Sprintf("[<-ELECTION]: [ME=%d] GRANTED RequestVote for %d", self.PID, a.CandidateId), config.C.LogElections)
 
 	return nil

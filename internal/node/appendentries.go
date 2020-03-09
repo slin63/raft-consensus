@@ -45,22 +45,32 @@ func CallAppendEntries(PID int, args *spec.AppendEntriesArgs) *spec.Result {
 }
 
 func (f *Ocean) AppendEntries(a spec.AppendEntriesArgs, result *spec.Result) error {
-	spec.RaftRWMutex.Lock()
-	// log.Println("AppendEntries( )Goroutine count:", runtime.NumGoroutine())
-	defer spec.RaftRWMutex.Unlock()
+	if raft.Role == spec.CANDIDATE {
+		config.LogIf(
+			fmt.Sprintf("[<-APPENDENTRIES]: [ME=%d] [TERM=%d] Received AppendEntries while role=candidate. Ending election!",
+				self.PID, raft.CurrentTerm),
+			config.C.LogElections)
+		endElection <- a.Term
+	} else {
+		spec.RaftRWMutex.Lock()
+		raft.ResetElectionState(a.Term)
+		spec.RaftRWMutex.Unlock()
+	}
 
 	// (0) If their term is greater, update our term and convert to follower
-	if a.Term >= raft.CurrentTerm {
-		raft.CurrentTerm = a.Term
-		if raft.Role == spec.CANDIDATE {
-			config.LogIf(
-				fmt.Sprintf("[<-APPENDENTRIES]: [ME=%d] [TERM=%d] Received AppendEntries while role=candidate. Ending election!",
-					self.PID, raft.CurrentTerm),
-				config.C.LogElections)
-			endElection <- struct{}{}
-		}
-		raft.Role = spec.FOLLOWER
-	}
+	// if a.Term >= raft.CurrentTerm {
+	// 	if raft.Role == spec.CANDIDATE {
+	// 		config.LogIf(
+	// 			fmt.Sprintf("[<-APPENDENTRIES]: [ME=%d] [TERM=%d] Received AppendEntries while role=candidate. Ending election!",
+	// 				self.PID, raft.CurrentTerm),
+	// 			config.C.LogElections)
+	// 		endElection <- a.Term
+	// 	} else {
+	// 		spec.RaftRWMutex.Lock()
+	// 		raft.ResetElectionState(a.Term)
+	// 		spec.RaftRWMutex.Unlock()
+	// 	}
+	// }
 
 	// (1) Fail if our term is greater
 	if a.Term < raft.CurrentTerm {
@@ -113,6 +123,7 @@ func (f *Ocean) AppendEntries(a spec.AppendEntriesArgs, result *spec.Result) err
 
 	// (3) Delete conflicting entries
 	// Check if we have conflicting entries
+	spec.RaftRWMutex.Lock()
 	if len(raft.Log) >= a.PrevLogIndex {
 		newIdx := 0
 		var inconsistency int
@@ -144,9 +155,9 @@ func (f *Ocean) AppendEntries(a spec.AppendEntriesArgs, result *spec.Result) err
 			config.C.LogAppendEntries,
 		)
 	}
+	spec.RaftRWMutex.Unlock()
 
 	result.Success = true
-
 	// If Entries is empty, this is a heartbeat.
 	if len(a.Entries) == 0 {
 		config.LogIf("[<-HEARTBEAT]", config.C.LogHeartbeats)

@@ -23,7 +23,7 @@ var self spec.Self
 
 var heartbeats = make(chan int)
 var membershipUpdate = make(chan struct{})
-var endElection = make(chan struct{})
+var endElection = make(chan int)
 var block = make(chan int, 1)
 
 func Live() {
@@ -72,7 +72,6 @@ func heartbeat() {
     for {
         if raft.Role == spec.LEADER {
             // Send empty append entries to every member as goroutines
-            log.Printf("definitely harvey")
             for PID := range self.MemberMap {
                 if PID != self.PID {
                     heartbeats <- PID
@@ -110,12 +109,12 @@ func dispatchHeartbeats() {
         } else {
             go func(PID int) {
                 config.LogIf(
-                    fmt.Sprintf("[LEAD] [HEARTBEAT->]: to [PID=%d]", PID),
+                    fmt.Sprintf("[TERM=%d] [HEARTBEAT->]: to [PID=%d]", raft.CurrentTerm, PID),
                     config.C.LogHeartbeatsLead,
                 )
                 r := CallAppendEntries(PID, args)
                 config.LogIf(
-                    fmt.Sprintf("[LEAD] [HEARTBEAT->]: DONE FROM [PID=%d]", PID),
+                    fmt.Sprintf("[TERM=%d] [HEARTBEAT->]: DONE FROM [PID=%d]", raft.CurrentTerm, PID),
                     (config.C.LogHeartbeatsLead && r.Error != CONNERROR),
                 )
             }(PID)
