@@ -19,6 +19,8 @@
     "LogTimers": false,
     "LogElections": true,
 
+    "LogDigestEntries": true,
+
     "RPCPort": "6004",
     "RPCMaxRetries": 3,
     "RPCTimeout": 3,

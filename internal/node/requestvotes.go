@@ -80,7 +80,7 @@ func InitiateElection() bool {
 			if r.VoteGranted {
 				votes += 1
 				if votes >= quorum {
-					config.LogIf(fmt.Sprintf("[CANDIDATE]: QUORUM Received (%d/%d)", votes, quorum), config.C.LogElections)
+					config.LogIf(fmt.Sprintf("[CANDIDATE]: QUORUM received (%d/%d)", votes, quorum), config.C.LogElections)
 					raft.BecomeLeader(&self)
 					spec.RaftRWMutex.Unlock()
 
