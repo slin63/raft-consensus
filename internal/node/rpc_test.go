@@ -18,7 +18,7 @@ func init() {
 }
 
 func resetCh() {
-	endElection = make(chan struct{})
+	endElection = make(chan int)
 }
 
 // See that heartbeats are working

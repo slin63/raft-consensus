@@ -4,6 +4,7 @@ package node
 import (
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/slin63/raft-consensus/internal/config"
 	"github.com/slin63/raft-consensus/internal/spec"
@@ -48,9 +49,14 @@ func InitiateElection() bool {
 			if err := client.Call("Ocean.RequestVote", args, &result); err != nil {
 				log.Fatal("Ocean.RequestVote failed:", err)
 			}
-			log.Printf("hey look at me")
-			results <- &result
-			log.Printf("hey look at me i'm blocking")
+			select {
+			// Receiver channel ready to receive results
+			case results <- &result:
+			// Receiver no longer doing its thing. Move on!
+			case <-time.After(time.Duration(config.C.RPCTimeout) * time.Second):
+				config.LogIf(fmt.Sprintf("[REQUESTVOTES-X] Receiver channel blocked. Aborting"), config.C.LogElections)
+			}
+			return
 		}(PID)
 	}
 	spec.SelfRWMutex.RUnlock()

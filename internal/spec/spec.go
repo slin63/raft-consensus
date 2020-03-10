@@ -37,12 +37,6 @@ type Self struct {
 	SuspicionMap SuspicionMapT
 }
 
-// Membership layer RPC information
-const MemberRPCPort = "6002"
-const MemberRPCRetryInterval = 3
-const MemberRPCRetryMax = 5
-const MemberInterval = 5
-
 func ReportOnline(to int64) {
 	log.Printf("[ONLINE] [ELECTTIMEOUT=%d]", to)
 }
@@ -51,9 +45,9 @@ func ReportOnline(to int64) {
 func GetSelf(self *Self) {
 	var client *rpc.Client
 	var err error
-	for i := 0; i <= MemberRPCRetryMax; i++ {
-		time.Sleep(MemberRPCRetryInterval * time.Second)
-		client, err = rpc.DialHTTP("tcp", "localhost:"+MemberRPCPort)
+	for i := 0; i <= config.C.MemberRPCRetryMax; i++ {
+		time.Sleep(time.Duration(config.C.MemberRPCRetryInterval) * time.Second)
+		client, err = rpc.DialHTTP("tcp", "localhost:"+config.C.MemberRPCPort)
 		if err != nil {
 			log.Println("RPC server still spooling... dialing:", err)
 		} else {

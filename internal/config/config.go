@@ -34,6 +34,12 @@ type configParam struct {
 	RPCMaxRetries    int
 	RPCTimeout       int
 	RPCRetryInterval int
+
+	// Membership layer
+	MemberRPCPort          string
+	MemberRPCRetryInterval int
+	MemberRPCRetryMax      int
+	MemberInterval         int
 }
 
 var C configParam

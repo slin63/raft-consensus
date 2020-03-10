@@ -19,9 +19,13 @@
     "LogTimers": false,
     "LogElections": true,
 
-
     "RPCPort": "6004",
     "RPCMaxRetries": 3,
     "RPCTimeout": 3,
-    "RPCRetryInterval": 1
+    "RPCRetryInterval": 1,
+
+    "MemberRPCPort": "6002",
+    "MemberRPCRetryInterval": 3,
+    "MemberRPCRetryMax": 5,
+    "MemberInterval": 2
 }

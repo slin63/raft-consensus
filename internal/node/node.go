@@ -127,7 +127,7 @@ func dispatchHeartbeats() {
 func subscribeMembership(membershipUpdate chan<- struct{}) {
     for {
         spec.GetSelf(&self)
-        time.Sleep(time.Second * spec.MemberInterval)
+        time.Sleep(time.Second * time.Duration(config.C.MemberInterval))
     }
 }
 

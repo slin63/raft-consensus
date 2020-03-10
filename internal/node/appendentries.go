@@ -45,7 +45,7 @@ func CallAppendEntries(PID int, args *spec.AppendEntriesArgs) *spec.Result {
 	// Our term is lower. Demote ourselves and convert to follower.
 	if result.Error == MISMATCHTERM {
 		spec.RaftRWMutex.Lock()
-		config.LogIf(fmt.Sprintf("[MISMATCHTERM] Sent appendEntries to machine with higher Term. Stepping down as leader.", PID), config.C.LogElections)
+		config.LogIf(fmt.Sprintf("[MISMATCHTERM] Sent appendEntries to machine with higher Term [PID=%d]. Stepping down as leader.", PID), config.C.LogElections)
 		raft.ResetElectionState(result.Term)
 		raft.ElectTimer.Stop()
 		spec.RaftRWMutex.Unlock()
