@@ -23,6 +23,7 @@ const (
 	ALREADYVOTED
 	OUTDATEDLOGTERM
 	OUTDATEDLOGLENGTH
+	OUTDATEDRESPONSE
 	CONNERROR
 )
 
@@ -40,6 +41,11 @@ func CallAppendEntries(PID int, args *spec.AppendEntriesArgs) *spec.Result {
 	var result spec.Result
 	if err := (*client).Call("Ocean.AppendEntries", *args, &result); err != nil {
 		log.Fatal(err)
+	}
+
+	// Only process the response if we are still the same term as when we originally sent it
+	if args.Term != raft.CurrentTerm {
+		return &spec.Result{Success: false, Error: OUTDATEDRESPONSE}
 	}
 
 	// Our term is lower. Demote ourselves and convert to follower.
@@ -162,10 +168,10 @@ func (f *Ocean) AppendEntries(a spec.AppendEntriesArgs, result *spec.Result) err
 	// If Entries is empty, this is a heartbeat.
 	if len(a.Entries) == 0 {
 		config.LogIf("[<-HEARTBEAT]", config.C.LogHeartbeats)
-		raft.ResetElectTimer()
 	} else {
 		log.Printf("[<-APPENDENTRIES]: [PID=%d] [RESULT=%v] [LOGS=%v]", self.PID, *result, raft.Log)
 	}
+	raft.ResetElectTimer()
 
 	return nil
 }

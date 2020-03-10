@@ -1,7 +1,7 @@
 {
     "Introducer": "fd-introducer",
     "ElectTimeoutMin": 750,
-    "ElectTimeoutMax": 751,
+    "ElectTimeoutMax": 1500,
     "HeartbeatInterval": 375,
     "Timescale": 1,
     "Quorum": 0.6,
@@ -11,8 +11,8 @@
     "LogMembership": false,
     "LogGoroutines": false,
 
-    "LogHeartbeats": true,
-    "LogHeartbeatsLead": true,
+    "LogHeartbeats": false,
+    "LogHeartbeatsLead": false,
     "LogAppendEntries": true,
 
     "LogConnections": false,
