@@ -45,7 +45,9 @@ func CallAppendEntries(PID int, args *spec.AppendEntriesArgs) *spec.Result {
 	// Our term is lower. Demote ourselves and convert to follower.
 	if result.Error == MISMATCHTERM {
 		spec.RaftRWMutex.Lock()
+		config.LogIf(fmt.Sprintf("[MISMATCHTERM] Sent appendEntries to machine with higher Term. Stepping down as leader.", PID), config.C.LogElections)
 		raft.ResetElectionState(result.Term)
+		raft.ElectTimer.Stop()
 		spec.RaftRWMutex.Unlock()
 	}
 
@@ -53,19 +55,22 @@ func CallAppendEntries(PID int, args *spec.AppendEntriesArgs) *spec.Result {
 }
 
 func (f *Ocean) AppendEntries(a spec.AppendEntriesArgs, result *spec.Result) error {
-	if raft.Role == spec.CANDIDATE {
-		config.LogIf(
-			fmt.Sprintf("[<-APPENDENTRIES]: [ME=%d] [TERM=%d] Received AppendEntries while role=candidate. Ending election!",
-				self.PID, raft.CurrentTerm),
-			config.C.LogElections)
-		endElection <- a.Term
-	}
-
 	// (0) If their term is greater, update our term and convert to follower
 	if a.Term >= raft.CurrentTerm {
-		spec.RaftRWMutex.Lock()
-		raft.ResetElectionState(a.Term)
-		spec.RaftRWMutex.Unlock()
+		if raft.Role == spec.CANDIDATE {
+			config.LogIf(
+				fmt.Sprintf(
+					"[<-APPENDENTRIES]: [ME=%d] [TERM=%d] Received equal or greater term AppendEntries while role=candidate. Ending election!",
+					self.PID, raft.CurrentTerm,
+				),
+				config.C.LogElections,
+			)
+			endElection <- a.Term
+		} else {
+			spec.RaftRWMutex.Lock()
+			raft.ResetElectionState(a.Term)
+			spec.RaftRWMutex.Unlock()
+		}
 	}
 
 	// (1) Fail if our term is greater

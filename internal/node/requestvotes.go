@@ -67,6 +67,8 @@ func InitiateElection() bool {
 				config.LogIf(fmt.Sprintf("[ELECTION-X]: Found node with higher term. Stepping down and resetting election state."), config.C.LogElections)
 				raft.ResetElectionState(r.Term)
 				raft.ElectTimer.Stop()
+				spec.RaftRWMutex.Unlock()
+
 				return false
 			}
 			if r.VoteGranted {
@@ -74,14 +76,17 @@ func InitiateElection() bool {
 				if votes >= quorum {
 					config.LogIf(fmt.Sprintf("[CANDIDATE]: QUORUM Received (%d/%d)", votes, quorum), config.C.LogElections)
 					raft.BecomeLeader(&self)
+					spec.RaftRWMutex.Unlock()
+
 					return true
 				}
 			}
 			spec.RaftRWMutex.Unlock()
 		case t := <-endElection:
 			// The election is over. Stop our timer and reset election state to that of a follower.
+			config.LogIf(fmt.Sprintf("[ENDELECTION]: End election pre-lock"), config.C.LogElections)
 			spec.RaftRWMutex.Lock()
-			config.LogIf(fmt.Sprintf("[ELECTION-X]: End election signal received. Resetting election state. New [TERM=%d]", t), config.C.LogElections)
+			config.LogIf(fmt.Sprintf("[ENDELECTION]: End election signal received. Resetting election state. New [TERM=%d]", t), config.C.LogElections)
 			raft.ResetElectionState(t)
 			raft.ElectTimer.Stop()
 			spec.RaftRWMutex.Unlock()
@@ -89,8 +94,6 @@ func InitiateElection() bool {
 			return false
 		}
 	}
-	config.LogIf(fmt.Sprintf("[ELECTION->]: Starting election 3"), config.C.LogElections)
-	return false
 }
 
 func (f *Ocean) RequestVote(a spec.RequestVoteArgs, result *spec.Result) error {
