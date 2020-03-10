@@ -112,7 +112,8 @@ func (f *Ocean) RequestVote(a spec.RequestVoteArgs, result *spec.Result) error {
 			raft.Role = spec.FOLLOWER
 			spec.RaftRWMutex.Unlock()
 		}
-
+		// This is a new term. We can reset VotedFor.
+		raft.VotedFor = spec.NOCANDIDATE
 	}
 
 	// (1) S5.1 Fail if our term is greater
