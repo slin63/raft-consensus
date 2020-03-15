@@ -23,6 +23,7 @@ type configParam struct {
 	LogHeartbeats     bool
 	LogHeartbeatsLead bool
 	LogAppendEntries  bool
+	LogPutEntry       bool
 	LogTimers         bool
 	LogElections      bool
 	LogMembership     bool

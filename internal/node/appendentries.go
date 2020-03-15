@@ -1,4 +1,4 @@
-// Client and server stubs for RPCs.
+// Code for implementing AppendEntries
 package node
 
 import (
@@ -174,71 +174,4 @@ func (f *Ocean) AppendEntries(a spec.AppendEntriesArgs, result *spec.Result) err
 	raft.ResetElectTimer()
 
 	return nil
-}
-
-// Receive entries from a client to be added to our log
-// It is up to our downstream client to to determine whether
-// or not it's a valid entry
-// The leader appends the command to its log as a new entry,
-// then issues AppendEntries RPCs in parallel to each of the
-// other servers to replicate the entry.
-func (f *Ocean) PutEntry(entry string, result *spec.Result) error {
-	log.Printf("PutEntry(): %s", entry)
-
-	// Add new entry to own log
-	spec.RaftRWMutex.Lock()
-	raft.AppendEntry(entry)
-	spec.RaftRWMutex.Unlock()
-
-	// Dispatch AppendEntries to follower nodes
-	spec.SelfRWMutex.RLock()
-	for PID := range self.MemberMap {
-		if PID != self.PID {
-			go appendEntriesUntilSuccess(raft, PID)
-		}
-	}
-	spec.SelfRWMutex.RUnlock()
-	// TODO (03/03 @ 11:07): set up quorum tracking
-	*result = spec.Result{Term: raft.CurrentTerm, Success: true}
-	return nil
-}
-
-func appendEntriesUntilSuccess(raft *spec.Raft, PID int) {
-	var result *spec.Result
-	// If last log index >= nextIndex for a follower,
-	// send log entries starting at nextIndex
-	if len(raft.Log)-1 >= raft.NextIndex[PID] {
-		for {
-			// Regenerate arguments on each call, because
-			// raft state may have changed between calls
-			spec.RaftRWMutex.RLock()
-			args := raft.GetAppendEntriesArgs(&self)
-			args.PrevLogIndex = raft.NextIndex[PID] - 1
-			args.PrevLogTerm = spec.GetTerm(&raft.Log[args.PrevLogIndex])
-			args.Entries = raft.Log[raft.NextIndex[PID]:]
-			config.LogIf(fmt.Sprintf("appendEntriesUntilSuccess() with args: %v", args), config.C.LogAppendEntries)
-			spec.RaftRWMutex.RUnlock()
-			result = CallAppendEntries(PID, args)
-
-			// Success! Increment next/matchIndex as a function of our inputs
-			// Otherwise, decrement nextIndex and try again.
-			spec.RaftRWMutex.Lock()
-			if result.Success {
-				raft.MatchIndex[PID] = args.PrevLogIndex + len(args.Entries)
-				raft.NextIndex[PID] = raft.MatchIndex[PID] + 1
-				break
-			} else {
-				// Decrement NextIndex if the failure was due to log consistency.
-				// If not, update our term and step down
-				if result.Term > raft.CurrentTerm {
-					raft.CurrentTerm = result.Term
-					raft.Role = spec.FOLLOWER
-				} else {
-					raft.NextIndex[PID] -= 1
-				}
-			}
-			spec.RaftRWMutex.Unlock()
-		}
-	}
-	log.Printf("[PUTENTRY->]: [PID=%d]", PID)
 }

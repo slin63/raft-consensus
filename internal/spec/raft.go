@@ -60,13 +60,22 @@ type Raft struct {
 }
 
 type Result struct {
-	// currentTerm, for leader to update itself
+	// CurrentTerm, for leader to update itself
 	Term int
-	// true if follower contained entry matching prevLogIndex and prevLogTerm
+
+	// True if follower contained entry matching prevLogIndex and prevLogTerm
 	Success bool
-	// error code for testing
+
+	// Response body for client requests
+	Data string
+
+	// Original entry for client requests
+	Entry string
+
+	// Error code for testing
 	Error int
-	// if the sending candidate received the vote
+
+	// If the sending candidate received the vote
 	VoteGranted bool
 }
 
@@ -96,6 +105,8 @@ type RequestVoteArgs struct {
 func ElectTimeout() int64 {
 	return int64(rand.Intn(config.C.ElectTimeoutMax-config.C.ElectTimeoutMin)+config.C.ElectTimeoutMin) * int64(config.C.Timescale)
 }
+
+func (r *Raft) Apply() { log.Println("TODO: Apply()") }
 
 func (r *Raft) Init(self *Self) {
 	RaftRWMutex.Lock()

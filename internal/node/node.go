@@ -3,11 +3,9 @@ package node
 
 import (
     "fmt"
-    "runtime"
-
     "log"
     "os"
-
+    "runtime"
     "sync"
     "time"
 
@@ -21,6 +19,7 @@ var raft *spec.Raft
 // Membership layer state
 var self spec.Self
 
+var entries = make(chan entryC)
 var heartbeats = make(chan int)
 var membershipUpdate = make(chan struct{})
 var endElection = make(chan int)
@@ -56,6 +55,8 @@ func live() {
     go subscribeMembership(membershipUpdate)
     go heartbeat()
     go dispatchHeartbeats()
+    go digestEntries()
+
     if config.C.LogGoroutines {
         go logGoroutines()
     }
