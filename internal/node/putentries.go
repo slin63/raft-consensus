@@ -69,13 +69,15 @@ func digestEntries() {
         // Dispatch AppendEntries to follower nodes
         spec.SelfRWMutex.RLock()
         quorum := spec.GetQuorum(&self)
+        remaining := len(self.MemberMap) - 1
         for PID := range self.MemberMap {
             if PID != self.PID {
-                log.Printf("processing %d", PID)
-                go func(PID int) {
+                go func(PID int, remaining *int) {
                     rch <- appendEntriesUntilSuccess(raft, PID)
-                    log.Printf("DONE with %d", PID)
-                }(PID)
+                    if *remaining -= 1; *remaining == 0 {
+                        close(rch)
+                    }
+                }(PID, &remaining)
             }
         }
         spec.SelfRWMutex.RUnlock()
@@ -88,7 +90,6 @@ func digestEntries() {
             rcount += 1
             if rcount >= quorum {
                 config.LogIf(fmt.Sprintf("[DIGESTENTRIES] QUOROM received (%d/%d) [entry=%s]", rcount, quorum, entry.D), config.C.LogDigestEntries)
-                // TODO (03/09 @ 12:48): do this only once
                 once.Do(func() { entry.C <- r })
             }
         }
