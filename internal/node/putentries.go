@@ -43,7 +43,9 @@ func (f *Ocean) PutEntry(entry string, result *spec.Result) error {
         if r.Success {
             // The entry was successfully processed.
             // 1. Apply to our own state
-            raft.Apply()
+            spec.RaftRWMutex.Lock()
+            raft.Apply(r.Index)
+            spec.RaftRWMutex.Unlock()
         }
         *result = *r
     case <-time.After(time.Second * time.Duration(config.C.RPCTimeout)):
@@ -60,7 +62,7 @@ func digestEntries() {
         var once sync.Once
         // Add new entry to own log
         spec.RaftRWMutex.Lock()
-        raft.AppendEntry(entry.D)
+        idx := raft.AppendEntry(entry.D)
         spec.RaftRWMutex.Unlock()
 
         rch := make(chan *spec.Result)
@@ -73,7 +75,9 @@ func digestEntries() {
         for PID := range self.MemberMap {
             if PID != self.PID {
                 go func(PID int, remaining *int) {
-                    rch <- appendEntriesUntilSuccess(raft, PID)
+                    r := appendEntriesUntilSuccess(raft, PID)
+                    r.Index = idx
+                    rch <- r
                     if *remaining -= 1; *remaining == 0 {
                         close(rch)
                     }

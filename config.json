@@ -26,6 +26,7 @@
     "RPCMaxRetries": 3,
     "RPCTimeout": 3,
     "RPCRetryInterval": 1,
+    "DFSPort": "6005",
 
     "MemberRPCPort": "6002",
     "MemberRPCRetryInterval": 3,

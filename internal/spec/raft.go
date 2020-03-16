@@ -72,6 +72,9 @@ type Result struct {
 	// Original entry for client requests
 	Entry string
 
+	// Index of entry processed
+	Index int
+
 	// Error code for testing
 	Error int
 
@@ -106,7 +109,17 @@ func ElectTimeout() int64 {
 	return int64(rand.Intn(config.C.ElectTimeoutMax-config.C.ElectTimeoutMin)+config.C.ElectTimeoutMin) * int64(config.C.Timescale)
 }
 
-func (r *Raft) Apply() { log.Println("TODO: Apply()") }
+// Apply any uncommitted changes to our state
+//   - Tries to apply changes up to idx.
+//   - For change in range(r.CommitIndex, idx):
+//       - Tries to apply change. Terminates program on failure.
+//       - Updates r.CommitIndex = idx
+// TODO (03/15 @ 13:38): Hook up after DFS is working sort of.
+func (r *Raft) Apply(idx int) bool {
+	log.Printf("TODO: Apply(). Currently mocking. [idx=%d]", idx)
+	r.CommitIndex = idx
+	return true
+}
 
 func (r *Raft) Init(self *Self) {
 	RaftRWMutex.Lock()
@@ -150,12 +163,22 @@ func (r *Raft) initVolatileState(self *Self) {
 	}
 }
 
-func (r *Raft) AppendEntry(msg string) {
+// Appends an entry to our log and returns the index of the new entry
+func (r *Raft) AppendEntry(msg string) int {
 	r.Log = append(r.Log, fmt.Sprintf("%d,%s", r.CurrentTerm, msg))
+	return r.GetLastLogIndex()
 }
 
 func (r *Raft) GetLastEntry() *string {
 	return &(r.Log[len(r.Log)-1])
+}
+
+func (r *Raft) GetLastLogIndex() int {
+	return len(r.Log) - 1
+}
+
+func (r *Raft) GetLastLogTerm() int {
+	return GetTerm(r.GetLastEntry())
 }
 
 // Return an AppendEntriesArgs with PrevLogIndex/Term set to
@@ -174,14 +197,6 @@ func (r *Raft) ResetElectTimer() {
 	config.LogIf(fmt.Sprintf("Resetting election timer"), config.C.LogTimers)
 	r.ElectTimer.Reset(time.Duration(r.ElectTimeout) * time.Millisecond)
 	config.LogIf(fmt.Sprintf("Reset!"), config.C.LogTimers)
-}
-
-func (r *Raft) GetLastLogIndex() int {
-	return len(r.Log) - 1
-}
-
-func (r *Raft) GetLastLogTerm() int {
-	return GetTerm(r.GetLastEntry())
 }
 
 func GetTerm(entry *string) int {

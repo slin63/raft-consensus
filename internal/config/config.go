@@ -36,6 +36,7 @@ type configParam struct {
 	RPCMaxRetries    int
 	RPCTimeout       int
 	RPCRetryInterval int
+	DFSPort          string
 
 	// Membership layer
 	MemberRPCPort          string
