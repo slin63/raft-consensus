@@ -40,6 +40,7 @@ func (f *Ocean) PutEntry(entry string, result *responses.Result) error {
 
     select {
     case r := <-resp:
+        r.Entry = entry
         log.Println(r)
         if r.Success {
             // The entry was successfully processed.
