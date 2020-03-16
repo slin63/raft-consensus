@@ -32,7 +32,7 @@ const (
 // Invoked by leader to replicate log entries (§5.3); also used as heartbeat (§5.2).
 func CallAppendEntries(PID int, args *spec.AppendEntriesArgs) *responses.Result {
 	config.LogIf(fmt.Sprintf("CallAppendEntries() trying to connect to PID %d", PID), config.C.LogConnections)
-	client, err := connect(PID)
+	client, err := connect(PID, config.C.RPCPort)
 	if err != nil {
 		config.LogIf(fmt.Sprintf("[CONNERROR] CallAppendEntries failed to connect to [PID=%d]. Aborting", PID), config.C.LogConnections)
 		return &responses.Result{Success: false, Error: CONNERROR}

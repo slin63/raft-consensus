@@ -33,7 +33,7 @@ func InitiateElection() bool {
 		}
 
 		go func(PID int) {
-			client, err := connect(PID)
+			client, err := connect(PID, config.C.RPCPort)
 			if err != nil {
 				config.LogIf(fmt.Sprintf("[CONNERROR] InitiateElection failed to connect to [PID=%d]. Aborting", PID), config.C.LogConnections)
 				return

@@ -31,7 +31,7 @@ func serveOceanRPC() {
 
 // Connect to some RPC server and return a pointer to the client
 // Retry some number of times if connection fails
-func connect(PID int) (*rpc.Client, error) {
+func connect(PID int, port string) (*rpc.Client, error) {
     var client *rpc.Client
     var err error
     node := self.MemberMap[PID]
@@ -40,7 +40,7 @@ func connect(PID int) (*rpc.Client, error) {
     // Timeout if dialing takes too long. (https://github.com/golang/go/wiki/Timeouts)
     go func() {
         for i := 0; i < config.C.RPCMaxRetries; i++ {
-            client, err := rpc.DialHTTP("tcp", node.IP+":"+config.C.RPCPort)
+            client, err := rpc.DialHTTP("tcp", node.IP+":"+port)
             if err != nil {
                 _, ok := self.MemberMap[PID]
                 if !ok {
