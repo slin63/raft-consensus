@@ -61,8 +61,11 @@ func digestCommits() {
     // Digest commits in order. Applies that fail crash the server
     for idx := range commits {
         config.LogIf(fmt.Sprintf("[APPLY]: Applying index %d", idx), config.C.LogDigestCommits)
-        applyCommits(idx)
-        config.LogIf(fmt.Sprintf("[APPLY]: Successfully applied index %d", idx), config.C.LogDigestCommits)
+        if ok := applyCommits(idx); !ok {
+            log.Fatalf("[APPLY-X] Failed to apply commit [idx=%d]. Terminating.", idx)
+        } else {
+            config.LogIf(fmt.Sprintf("[APPLY]: Successfully applied index %d", idx), config.C.LogDigestCommits)
+        }
     }
 }
 

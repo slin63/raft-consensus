@@ -16,7 +16,7 @@
     "LogAppendEntries": true,
     "LogPutEntry": true,
 
-    "LogConnections": false,
+    "LogConnections": true,
     "LogTimers": false,
     "LogElections": true,
 
