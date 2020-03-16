@@ -109,18 +109,6 @@ func ElectTimeout() int64 {
 	return int64(rand.Intn(config.C.ElectTimeoutMax-config.C.ElectTimeoutMin)+config.C.ElectTimeoutMin) * int64(config.C.Timescale)
 }
 
-// Apply any uncommitted changes to our state
-//   - Tries to apply changes up to idx.
-//   - For change in range(r.CommitIndex, idx):
-//       - Tries to apply change. Terminates program on failure.
-//       - Updates r.CommitIndex = idx
-// TODO (03/15 @ 13:38): Hook up after DFS is working sort of.
-func (r *Raft) Apply(idx int) bool {
-	log.Printf("TODO: Apply(). Currently mocking. [idx=%d]", idx)
-	r.CommitIndex = idx
-	return true
-}
-
 func (r *Raft) Init(self *Self) {
 	RaftRWMutex.Lock()
 	defer RaftRWMutex.Unlock()

@@ -58,11 +58,9 @@ func (f *Ocean) PutEntry(entry string, result *spec.Result) error {
 func digestCommits() {
     // Digest commits in order. Applies that fail crash the server
     for idx := range commits {
-        spec.RaftRWMutex.Lock()
         config.LogIf(fmt.Sprintf("[APPLY]: Applying index %d", idx), config.C.LogDigestCommits)
-        raft.Apply(idx)
+        applyCommits(idx)
         config.LogIf(fmt.Sprintf("[APPLY]: Successfully applied index %d", idx), config.C.LogDigestCommits)
-        spec.RaftRWMutex.Unlock()
     }
 }
 
