@@ -14,7 +14,7 @@ func main() {
 	log.SetPrefix(config.C.Prefix + " - ")
 	isClient, err := strconv.ParseBool(os.Getenv("CLIENT"))
 	if err != nil {
-		log.Fatal("CLIENT not set in this environment")
+		isClient = false
 	}
 
 	if !isClient {
