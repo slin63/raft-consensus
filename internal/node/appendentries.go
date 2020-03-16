@@ -154,9 +154,10 @@ func (f *Ocean) AppendEntries(a spec.AppendEntriesArgs, result *spec.Result) err
 	// (4) Append any new entries not in log
 	raft.Log = append(raft.Log, a.Entries...)
 
-	// (5) Update commit index
+	// (5) Update commit index. Try and apply commit
 	if a.LeaderCommit > raft.CommitIndex {
 		raft.CommitIndex = int(math.Min(float64(a.LeaderCommit), float64(len(raft.Log)-1)))
+		commits <- raft.CommitIndex
 		config.LogIf(
 			fmt.Sprintf("[APPENDENTRIES] (5) New commit index = %d", raft.CommitIndex),
 			config.C.LogAppendEntries,

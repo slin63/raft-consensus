@@ -14,13 +14,14 @@
     "LogHeartbeats": false,
     "LogHeartbeatsLead": false,
     "LogAppendEntries": true,
-    "LogPutEntries": true,
+    "LogPutEntry": true,
 
     "LogConnections": false,
     "LogTimers": false,
     "LogElections": true,
 
     "LogDigestEntries": true,
+    "LogDigestCommits": true,
 
     "RPCPort": "6004",
     "RPCMaxRetries": 3,

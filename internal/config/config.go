@@ -29,7 +29,9 @@ type configParam struct {
 	LogMembership     bool
 	LogGoroutines     bool
 	LogConnections    bool
-	LogDigestEntries  bool
+
+	LogDigestEntries bool
+	LogDigestCommits bool
 
 	// Networking
 	RPCPort          string

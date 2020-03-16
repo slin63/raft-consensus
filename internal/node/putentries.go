@@ -42,10 +42,9 @@ func (f *Ocean) PutEntry(entry string, result *spec.Result) error {
         log.Println(r)
         if r.Success {
             // The entry was successfully processed.
-            // 1. Apply to our own state
-            spec.RaftRWMutex.Lock()
-            raft.Apply(r.Index)
-            spec.RaftRWMutex.Unlock()
+            // 1. Apply to our own state.
+            // The program will explode if the state application fails.
+            commits <- r.Index
         }
         *result = *r
     case <-time.After(time.Second * time.Duration(config.C.RPCTimeout)):
@@ -54,6 +53,17 @@ func (f *Ocean) PutEntry(entry string, result *spec.Result) error {
     }
 
     return nil
+}
+
+func digestCommits() {
+    // Digest commits in order. Applies that fail crash the server
+    for idx := range commits {
+        spec.RaftRWMutex.Lock()
+        config.LogIf(fmt.Sprintf("[APPLY]: Applying index %d", idx), config.C.LogDigestCommits)
+        raft.Apply(idx)
+        config.LogIf(fmt.Sprintf("[APPLY]: Successfully applied index %d", idx), config.C.LogDigestCommits)
+        spec.RaftRWMutex.Unlock()
+    }
 }
 
 func digestEntries() {

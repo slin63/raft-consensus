@@ -20,6 +20,7 @@ var raft *spec.Raft
 var self spec.Self
 
 var entries = make(chan entryC)
+var commits = make(chan int)
 var heartbeats = make(chan int)
 var membershipUpdate = make(chan struct{})
 var endElection = make(chan int)
@@ -56,6 +57,7 @@ func live() {
     go heartbeat()
     go dispatchHeartbeats()
     go digestEntries()
+    go digestCommits()
 
     if config.C.LogGoroutines {
         go logGoroutines()
