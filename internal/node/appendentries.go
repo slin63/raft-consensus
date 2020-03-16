@@ -8,6 +8,7 @@ import (
 
 	"github.com/slin63/raft-consensus/internal/config"
 	"github.com/slin63/raft-consensus/internal/spec"
+	"github.com/slin63/raft-consensus/pkg/responses"
 )
 
 // Because rafts float in the ocean
@@ -29,23 +30,23 @@ const (
 
 // AppendEntries (client)
 // Invoked by leader to replicate log entries (§5.3); also used as heartbeat (§5.2).
-func CallAppendEntries(PID int, args *spec.AppendEntriesArgs) *spec.Result {
+func CallAppendEntries(PID int, args *spec.AppendEntriesArgs) *responses.Result {
 	config.LogIf(fmt.Sprintf("CallAppendEntries() trying to connect to PID %d", PID), config.C.LogConnections)
 	client, err := connect(PID)
 	if err != nil {
 		config.LogIf(fmt.Sprintf("[CONNERROR] CallAppendEntries failed to connect to [PID=%d]. Aborting", PID), config.C.LogConnections)
-		return &spec.Result{Success: false, Error: CONNERROR}
+		return &responses.Result{Success: false, Error: CONNERROR}
 	}
 	defer client.Close()
 
-	var result spec.Result
+	var result responses.Result
 	if err := (*client).Call("Ocean.AppendEntries", *args, &result); err != nil {
 		log.Fatal(err)
 	}
 
 	// Only process the response if we are still the same term as when we originally sent it
 	if args.Term != raft.CurrentTerm {
-		return &spec.Result{Success: false, Error: OUTDATEDRESPONSE}
+		return &responses.Result{Success: false, Error: OUTDATEDRESPONSE}
 	}
 
 	// Our term is lower. Demote ourselves and convert to follower.
@@ -60,7 +61,7 @@ func CallAppendEntries(PID int, args *spec.AppendEntriesArgs) *spec.Result {
 	return &result
 }
 
-func (f *Ocean) AppendEntries(a spec.AppendEntriesArgs, result *spec.Result) error {
+func (f *Ocean) AppendEntries(a spec.AppendEntriesArgs, result *responses.Result) error {
 	// (0) If their term is greater, update our term and convert to follower
 	if a.Term >= raft.CurrentTerm {
 		if raft.Role == spec.CANDIDATE {
@@ -81,7 +82,7 @@ func (f *Ocean) AppendEntries(a spec.AppendEntriesArgs, result *spec.Result) err
 
 	// (1) Fail if our term is greater
 	if a.Term < raft.CurrentTerm {
-		*result = spec.Result{
+		*result = responses.Result{
 			Term:    raft.CurrentTerm,
 			Success: false,
 			Error:   MISMATCHTERM,
@@ -99,7 +100,7 @@ func (f *Ocean) AppendEntries(a spec.AppendEntriesArgs, result *spec.Result) err
 			fmt.Sprintf("[APPENDENTRIES] (2) raft.Log[PrevLogIndex=%d] does not exist. [raft.Log=%v]", a.PrevLogIndex, raft.Log),
 			config.C.LogAppendEntries,
 		)
-		*result = spec.Result{
+		*result = responses.Result{
 			Term:    raft.CurrentTerm,
 			Success: false,
 			Error:   MISSINGLOGENTRY,
@@ -118,7 +119,7 @@ func (f *Ocean) AppendEntries(a spec.AppendEntriesArgs, result *spec.Result) err
 			),
 			config.C.LogAppendEntries,
 		)
-		*result = spec.Result{
+		*result = responses.Result{
 			Term:    raft.CurrentTerm,
 			Success: false,
 			Error:   MISMATCHLOGTERM,
@@ -126,7 +127,7 @@ func (f *Ocean) AppendEntries(a spec.AppendEntriesArgs, result *spec.Result) err
 		return nil
 	}
 
-	*result = spec.Result{Term: raft.CurrentTerm, Success: false}
+	*result = responses.Result{Term: raft.CurrentTerm, Success: false}
 
 	// (3) Delete conflicting entries
 	// Check if we have conflicting entries

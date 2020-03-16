@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/slin63/raft-consensus/internal/config"
-	"github.com/slin63/raft-consensus/internal/spec"
+	"github.com/slin63/raft-consensus/pkg/responses"
 )
 
 const helpS = `Send over a string.`
@@ -24,7 +24,7 @@ func PutEntry(args []string) {
 	}
 
 	// PID of assigned server
-	var result *spec.Result
+	var result *responses.Result
 	if err = client.Call("Ocean.PutEntry", entry, &result); err != nil {
 		log.Fatal(err)
 	}

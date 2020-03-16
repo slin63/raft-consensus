@@ -9,6 +9,7 @@ import (
 
     "github.com/slin63/raft-consensus/internal/config"
     "github.com/slin63/raft-consensus/internal/spec"
+    "github.com/slin63/raft-consensus/pkg/responses"
 )
 
 type entryC struct {
@@ -17,7 +18,7 @@ type entryC struct {
 
     // Channel that digestEntries will use to notify upstream
     // PutEntry of successful replication
-    C chan *spec.Result
+    C chan *responses.Result
 }
 
 // Receive entries from a client to be added to our log
@@ -30,9 +31,9 @@ type entryC struct {
 //    sends a success signal back upstream to PutEntry to indicate the entry
 //      a. was safely replicated
 //      b. will now be applied to the state machine
-func (f *Ocean) PutEntry(entry string, result *spec.Result) error {
+func (f *Ocean) PutEntry(entry string, result *responses.Result) error {
     log.Printf("PutEntry(): %s", entry)
-    resp := make(chan *spec.Result)
+    resp := make(chan *responses.Result)
 
     // Add new entry to log for processing
     entries <- entryC{entry, resp}
@@ -49,7 +50,7 @@ func (f *Ocean) PutEntry(entry string, result *spec.Result) error {
         *result = *r
     case <-time.After(time.Second * time.Duration(config.C.RPCTimeout)):
         config.LogIf(fmt.Sprintf("[PUTENTRY]: PutEntry timed out waiting for quorum"), config.C.LogPutEntry)
-        *result = spec.Result{Term: raft.CurrentTerm, Success: false}
+        *result = responses.Result{Term: raft.CurrentTerm, Success: false}
     }
 
     return nil
@@ -73,7 +74,7 @@ func digestEntries() {
         idx := raft.AppendEntry(entry.D)
         spec.RaftRWMutex.Unlock()
 
-        rch := make(chan *spec.Result)
+        rch := make(chan *responses.Result)
         rcount := 0
 
         // Dispatch AppendEntries to follower nodes
@@ -111,8 +112,8 @@ func digestEntries() {
 // As titled. Assume the following:
 // 1) For any server capable of responding, we will EVENTUALLY receive
 //    a successful response.
-func appendEntriesUntilSuccess(raft *spec.Raft, PID int) *spec.Result {
-    var result *spec.Result
+func appendEntriesUntilSuccess(raft *spec.Raft, PID int) *responses.Result {
+    var result *responses.Result
     // If last log index >= nextIndex for a follower,
     // send log entries starting at nextIndex
     if len(raft.Log)-1 >= raft.NextIndex[PID] {

@@ -8,6 +8,7 @@ import (
 
 	"github.com/slin63/raft-consensus/internal/config"
 	"github.com/slin63/raft-consensus/internal/spec"
+	"github.com/slin63/raft-consensus/pkg/responses"
 )
 
 // TODO (03/07 @ 13:11): Need to test elections when everyone has the same election timeout timer so that we can assure that elections will still complete when they are concurrent candidates
@@ -23,7 +24,7 @@ func InitiateElection() bool {
 
 	config.LogIf(fmt.Sprintf("[ELECTION->]: Starting election [TERM=%d]", raft.CurrentTerm), config.C.LogElections)
 
-	results := make(chan *spec.Result)
+	results := make(chan *responses.Result)
 	// Send out RequestVote RPCs to all other nodes
 	spec.SelfRWMutex.RLock()
 	for PID := range self.MemberMap {
@@ -45,7 +46,7 @@ func InitiateElection() bool {
 				raft.GetLastLogTerm(),
 			}
 
-			var result spec.Result
+			var result responses.Result
 			if err := client.Call("Ocean.RequestVote", args, &result); err != nil {
 				log.Fatal("Ocean.RequestVote failed:", err)
 			}
@@ -102,7 +103,7 @@ func InitiateElection() bool {
 	}
 }
 
-func (f *Ocean) RequestVote(a spec.RequestVoteArgs, result *spec.Result) error {
+func (f *Ocean) RequestVote(a spec.RequestVoteArgs, result *responses.Result) error {
 	// Step down and update term if we receive a higher term
 	if a.Term > raft.CurrentTerm {
 		if raft.Role == spec.CANDIDATE {
@@ -125,14 +126,14 @@ func (f *Ocean) RequestVote(a spec.RequestVoteArgs, result *spec.Result) error {
 	// (1) S5.1 Fail if our term is greater
 	if raft.CurrentTerm > a.Term {
 		config.LogIf(fmt.Sprintf("[<-ELECTIONERR]: MISMATCHTERM"), config.C.LogElections)
-		*result = spec.Result{Term: raft.CurrentTerm, VoteGranted: false, Error: MISMATCHTERM}
+		*result = responses.Result{Term: raft.CurrentTerm, VoteGranted: false, Error: MISMATCHTERM}
 		return nil
 	}
 
 	// (2) S5.2, S5.4 Make sure we haven't already voted for someone else or for this PID
 	if raft.VotedFor != spec.NOCANDIDATE {
 		config.LogIf(fmt.Sprintf("[<-ELECTIONERR]: ALREADYVOTED [raft.VotedFor=%d]", raft.VotedFor), config.C.LogElections)
-		*result = spec.Result{Term: raft.CurrentTerm, VoteGranted: false, Error: ALREADYVOTED}
+		*result = responses.Result{Term: raft.CurrentTerm, VoteGranted: false, Error: ALREADYVOTED}
 		return nil
 	}
 
@@ -140,12 +141,12 @@ func (f *Ocean) RequestVote(a spec.RequestVoteArgs, result *spec.Result) error {
 	// (a) Comparing log terms and (b) log length
 	if a.LastLogTerm < spec.GetTerm(raft.GetLastEntry()) {
 		config.LogIf(fmt.Sprintf("[<-ELECTIONERR]: OUTDATEDLOGTERM"), config.C.LogElections)
-		*result = spec.Result{Term: raft.CurrentTerm, VoteGranted: false, Error: OUTDATEDLOGTERM}
+		*result = responses.Result{Term: raft.CurrentTerm, VoteGranted: false, Error: OUTDATEDLOGTERM}
 		return nil
 	} else if a.LastLogTerm == spec.GetTerm(raft.GetLastEntry()) {
 		if a.LastLogIndex < len(raft.Log)-1 {
 			config.LogIf(fmt.Sprintf("[<-ELECTIONERR]: OUTDATEDLOGLENGTH"), config.C.LogElections)
-			*result = spec.Result{Term: raft.CurrentTerm, VoteGranted: false, Error: OUTDATEDLOGLENGTH}
+			*result = responses.Result{Term: raft.CurrentTerm, VoteGranted: false, Error: OUTDATEDLOGLENGTH}
 			return nil
 		}
 	}
@@ -153,7 +154,7 @@ func (f *Ocean) RequestVote(a spec.RequestVoteArgs, result *spec.Result) error {
 	// If we made it to this point, the incoming log is as up-to-date as ours
 	// and we can safely grant our vote and reset our election timer.
 	raft.ResetElectTimer()
-	*result = spec.Result{Term: raft.CurrentTerm, VoteGranted: true}
+	*result = responses.Result{Term: raft.CurrentTerm, VoteGranted: true}
 	spec.RaftRWMutex.Lock()
 	raft.VotedFor = a.CandidateId
 	spec.RaftRWMutex.Unlock()

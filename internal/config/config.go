@@ -34,11 +34,11 @@ type configParam struct {
 	LogDigestCommits bool
 
 	// Networking
-	RPCPort          string
-	RPCMaxRetries    int
-	RPCTimeout       int
-	RPCRetryInterval int
-	DFSPort          string
+	RPCPort           string
+	RPCMaxRetries     int
+	RPCTimeout        int
+	RPCRetryInterval  int
+	FilesystemRPCPort string
 
 	// Membership layer
 	MemberRPCPort          string

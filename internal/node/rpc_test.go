@@ -7,6 +7,7 @@ import (
 
 	"github.com/slin63/raft-consensus/internal/config"
 	"github.com/slin63/raft-consensus/internal/spec"
+	"github.com/slin63/raft-consensus/pkg/responses"
 )
 
 var oc *Ocean = new(Ocean)
@@ -203,8 +204,8 @@ func assertResult(value int, expected int, t *testing.T) {
 	}
 }
 
-func getResult() *spec.Result {
-	return &spec.Result{}
+func getResult() *responses.Result {
+	return &responses.Result{}
 }
 
 func getArgs() *spec.AppendEntriesArgs {
