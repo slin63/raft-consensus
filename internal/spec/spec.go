@@ -54,12 +54,15 @@ func GetSelf(self *Self) {
 			break
 		}
 	}
+
 	// Synchronous call
 	var reply Self
 	err = client.Call("Membership.Self", 0, &reply)
 	if err != nil {
 		log.Fatal("RPC error:", err)
 	}
+	SelfRWMutex.Lock()
+	defer SelfRWMutex.Unlock()
 	*self = reply
 	config.LogIf(fmt.Sprintf("[SELF]: Updated membership"), config.C.LogMembership)
 }
