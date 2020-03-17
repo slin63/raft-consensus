@@ -17,8 +17,9 @@ func main() {
 		isClient = false
 	}
 
-	if isClient {
-		return node.Live()
+	if !isClient {
+		node.Live()
+	} else {
+		client.PutEntry(os.Args[1:])
 	}
-	return client.PutEntry(os.Args[1:])
 }
