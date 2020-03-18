@@ -40,10 +40,21 @@ func applyCommits(idx int) bool {
         if err := (*client).Call("Filesystem.Execute", entry, &result); err != nil {
             log.Fatal(err)
         }
-        config.LogIf(fmt.Sprintf("[APPLY]: Result for %s: %v", tr(entry, 10), result), config.C.LogDigestCommits)
+        config.LogIf(
+            fmt.Sprintf("[APPLY]: Result for %s: %v %v %v %v %v %v %v",
+                tr(entry, 10),
+                result.Term,
+                result.Success,
+                result.Data,
+                tr(result.Entry, 20),
+                result.Index,
+                result.Error,
+                result.VoteGranted,
+            ),
+            config.C.LogDigestCommits,
+        )
     }
 
     raft.CommitIndex = idx
-
     return true
 }
