@@ -143,11 +143,10 @@ func appendEntriesUntilSuccess(raft *spec.Raft, PID int) *responses.Result {
             // Success! Increment next/matchIndex as a function of our inputs
             // Otherwise, decrement nextIndex and try again.
             spec.RaftRWMutex.Lock()
-            defer spec.RaftRWMutex.Unlock()
-
             if result.Success {
                 raft.MatchIndex[PID] = args.PrevLogIndex + len(args.Entries)
                 raft.NextIndex[PID] = raft.MatchIndex[PID] + 1
+                spec.RaftRWMutex.Unlock()
                 break
             } else {
                 // Decrement NextIndex if the failure was due to log consistency.
@@ -159,6 +158,7 @@ func appendEntriesUntilSuccess(raft *spec.Raft, PID int) *responses.Result {
                     raft.NextIndex[PID] -= 1
                 }
             }
+            spec.RaftRWMutex.Unlock()
         }
     } else {
         log.Printf("log length was weird")
