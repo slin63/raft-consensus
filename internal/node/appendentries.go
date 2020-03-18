@@ -158,7 +158,9 @@ func (f *Ocean) AppendEntries(a spec.AppendEntriesArgs, result *responses.Result
 	// (5) Update commit index. Try and apply commit
 	if a.LeaderCommit > raft.CommitIndex {
 		raft.CommitIndex = int(math.Min(float64(a.LeaderCommit), float64(len(raft.Log)-1)))
-		commits <- raft.CommitIndex
+		// Because our "local" state machine is actually a distributed file system,
+		// only the leader needs to take action. We merely need to know the commit index, that is enough.
+		// commits <- raft.CommitIndex
 		config.LogIf(
 			fmt.Sprintf("[APPENDENTRIES] (5) New commit index = %d", raft.CommitIndex),
 			config.C.LogAppendEntries,
