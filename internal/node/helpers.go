@@ -67,3 +67,10 @@ func connect(PID int, port string) (*rpc.Client, error) {
 
     return client, err
 }
+
+func tr(s string, max int) string {
+    if len(s) > max {
+        return s[0:max] + "..."
+    }
+    return s
+}

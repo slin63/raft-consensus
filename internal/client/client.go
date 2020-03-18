@@ -28,5 +28,4 @@ func PutEntry(args []string) {
 	if err = client.Call("Ocean.PutEntry", entry, &result); err != nil {
 		log.Fatal(err)
 	}
-	log.Println(*result)
 }

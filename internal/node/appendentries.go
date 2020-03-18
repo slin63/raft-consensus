@@ -171,7 +171,7 @@ func (f *Ocean) AppendEntries(a spec.AppendEntriesArgs, result *responses.Result
 	if len(a.Entries) == 0 {
 		config.LogIf("[<-HEARTBEAT]", config.C.LogHeartbeats)
 	} else {
-		log.Printf("[<-APPENDENTRIES]: [PID=%d] [RESULT=%v] [LOGS=%v]", self.PID, *result, raft.Log)
+		log.Printf("[<-APPENDENTRIES]: [PID=%d] [RESULT=%v] [len(LOGS)=%v]", self.PID, *result, len(raft.Log))
 	}
 	raft.ResetElectTimer()
 

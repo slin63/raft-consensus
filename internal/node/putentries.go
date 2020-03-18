@@ -32,7 +32,7 @@ type entryC struct {
 //      a. was safely replicated
 //      b. will now be applied to the state machine
 func (f *Ocean) PutEntry(entry string, result *responses.Result) error {
-    log.Printf("PutEntry(): %s", entry)
+    log.Printf("PutEntry(): %s", tr(entry, 15))
     resp := make(chan *responses.Result)
 
     // Add new entry to log for processing
@@ -41,7 +41,6 @@ func (f *Ocean) PutEntry(entry string, result *responses.Result) error {
     select {
     case r := <-resp:
         r.Entry = entry
-        log.Println(r)
         if r.Success {
             // The entry was successfully processed.
             // 1. Apply to our own state.
@@ -106,7 +105,7 @@ func digestEntries() {
             }
             rcount += 1
             if rcount >= quorum {
-                config.LogIf(fmt.Sprintf("[DIGESTENTRIES] QUOROM received (%d/%d) [entry=%s]", rcount, quorum, entry.D), config.C.LogDigestEntries)
+                config.LogIf(fmt.Sprintf("[DIGESTENTRIES] QUOROM received (%d/%d) [entry=%s]", rcount, quorum, tr(entry.D, 10)), config.C.LogDigestEntries)
                 once.Do(func() { entry.C <- r })
             }
         }
@@ -129,7 +128,15 @@ func appendEntriesUntilSuccess(raft *spec.Raft, PID int) *responses.Result {
             args.PrevLogIndex = raft.NextIndex[PID] - 1
             args.PrevLogTerm = spec.GetTerm(&raft.Log[args.PrevLogIndex])
             args.Entries = raft.Log[raft.NextIndex[PID]:]
-            config.LogIf(fmt.Sprintf("appendEntriesUntilSuccess() with args: %v", args), config.C.LogAppendEntries)
+            config.LogIf(
+                fmt.Sprintf("appendEntriesUntilSuccess() with args: %v, %v, %v, %v, %v",
+                    args.Term,
+                    args.LeaderId,
+                    args.PrevLogIndex,
+                    args.PrevLogTerm,
+                    args.LeaderCommit,
+                ),
+                config.C.LogAppendEntries)
             spec.RaftRWMutex.RUnlock()
             result = CallAppendEntries(PID, args)
 

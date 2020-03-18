@@ -34,13 +34,13 @@ func applyCommits(idx int) bool {
 
     // Entries to apply to state machine
     toApply := raft.Log[raft.CommitIndex+1 : idx+1]
-    config.LogIf(fmt.Sprintf("[APPLY]: Applying entries: %v", toApply), config.C.LogDigestCommits)
+    config.LogIf(fmt.Sprintf("[APPLY]: Applying %d entries", len(toApply)), config.C.LogDigestCommits)
     for _, entry := range toApply {
         var result responses.Result
         if err := (*client).Call("Filesystem.Execute", entry, &result); err != nil {
             log.Fatal(err)
         }
-        config.LogIf(fmt.Sprintf("[APPLY]: Result for %s: %v", entry, result), config.C.LogDigestCommits)
+        config.LogIf(fmt.Sprintf("[APPLY]: Result for %s: %v", tr(entry, 10), result), config.C.LogDigestCommits)
     }
 
     raft.CommitIndex = idx
