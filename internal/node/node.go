@@ -102,7 +102,6 @@ func heartbeat() {
 // Check safety of heartbeat target and dispatch heartbeat goroutine
 func dispatchHeartbeats() {
     for PID := range heartbeats {
-        args := raft.GetAppendEntriesArgs(&self)
         if _, ok := self.MemberMap[PID]; !ok {
             config.LogIf(
                 fmt.Sprintf("[HEARTBEATERR] Tried heartbeating to dead node [PID=%d].", PID),
@@ -115,7 +114,7 @@ func dispatchHeartbeats() {
                     fmt.Sprintf("[TERM=%d] [HEARTBEAT->]: to [PID=%d]", raft.CurrentTerm, PID),
                     config.C.LogHeartbeatsLead,
                 )
-                r := CallAppendEntries(PID, args)
+                r := CallAppendEntries(PID, raft.GetAppendEntriesArgs(&self))
                 config.LogIf(
                     fmt.Sprintf("[TERM=%d] [HEARTBEAT->]: DONE FROM [PID=%d]", raft.CurrentTerm, PID),
                     (config.C.LogHeartbeatsLead && r.Error != CONNERROR),
