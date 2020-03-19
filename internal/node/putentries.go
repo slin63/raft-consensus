@@ -74,7 +74,9 @@ func digestEntries() {
         var once sync.Once
         // Add new entry to own log
         spec.RaftRWMutex.Lock()
+        config.LogIf(fmt.Sprintf("[DIGESTENTRIES]: Processing [%s]", entry.D), config.C.LogDigestEntriesVerbose)
         idx := raft.AppendEntry(entry.D)
+        config.LogIf(fmt.Sprintf("[DIGESTENTRIES]: New log %s", raft.Log), config.C.LogDigestEntriesVerbose)
         spec.RaftRWMutex.Unlock()
 
         rch := make(chan *responses.Result)
@@ -105,7 +107,7 @@ func digestEntries() {
             }
             rcount += 1
             if rcount >= quorum {
-                config.LogIf(fmt.Sprintf("[DIGESTENTRIES] QUOROM received (%d/%d) [entry=%s]", rcount, quorum, tr(entry.D, 10)), config.C.LogDigestEntries)
+                config.LogIf(fmt.Sprintf("[DIGESTENTRIES] QUOROM received (%d/%d) [entry=%s]", rcount, quorum, tr(entry.D, 20)), config.C.LogDigestEntries)
                 once.Do(func() { entry.C <- r })
             }
         }

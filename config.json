@@ -21,6 +21,7 @@
     "LogElections": true,
 
     "LogDigestEntries": true,
+    "LogDigestEntriesVerbose": false,
     "LogDigestCommits": true,
 
     "RPCPort": "6004",

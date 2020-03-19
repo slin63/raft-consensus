@@ -30,8 +30,9 @@ type configParam struct {
 	LogGoroutines     bool
 	LogConnections    bool
 
-	LogDigestEntries bool
-	LogDigestCommits bool
+	LogDigestEntries        bool
+	LogDigestEntriesVerbose bool
+	LogDigestCommits        bool
 
 	// Networking
 	RPCPort           string
