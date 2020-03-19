@@ -133,8 +133,11 @@ func (f *Ocean) AppendEntries(a spec.AppendEntriesArgs, result *responses.Result
 
 	// (3) Delete conflicting entries
 	// Check if we have conflicting entries
+
+	// Check that len(a.Entries) > 0 so that we're not
+	// erring on out of date heartbeats
 	spec.RaftRWMutex.Lock()
-	if len(raft.Log) >= a.PrevLogIndex {
+	if len(raft.Log) >= a.PrevLogIndex && len(a.Entries) > 0 {
 		newIdx := 0
 		var inconsistency int
 		for i := a.PrevLogIndex + 1; i < len(raft.Log); i++ {
