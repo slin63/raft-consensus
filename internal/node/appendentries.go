@@ -62,6 +62,8 @@ func CallAppendEntries(PID int, args *spec.AppendEntriesArgs) *responses.Result 
 }
 
 func (f *Ocean) AppendEntries(a spec.AppendEntriesArgs, result *responses.Result) error {
+	raft.ResetElectTimer()
+
 	// (0) If their term is greater, update our term and convert to follower
 	if a.Term >= raft.CurrentTerm {
 		if raft.Role == spec.CANDIDATE {
@@ -172,10 +174,9 @@ func (f *Ocean) AppendEntries(a spec.AppendEntriesArgs, result *responses.Result
 	// If Entries is empty, this is a heartbeat.
 	if len(a.Entries) == 0 {
 		config.LogIf("[<-HEARTBEAT]", config.C.LogHeartbeats)
-	} else {
-		log.Printf("[<-APPENDENTRIES]: [PID=%d] [RESULT=%v] [len(LOGS)=%v]", self.PID, *result, len(raft.Log))
+		return nil
 	}
-	raft.ResetElectTimer()
 
+	log.Printf("[<-APPENDENTRIES]: [PID=%d] [RESULT=%v] [len(LOGS)=%v]", self.PID, *result, len(raft.Log))
 	return nil
 }
