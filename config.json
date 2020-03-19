@@ -15,6 +15,7 @@
     "LogHeartbeatsLead": false,
     "LogAppendEntries": true,
     "LogPutEntry": true,
+    "LogConflictingEntries": true,
 
     "LogConnections": true,
     "LogTimers": false,

@@ -138,6 +138,13 @@ func (f *Ocean) AppendEntries(a spec.AppendEntriesArgs, result *responses.Result
 		newIdx := 0
 		var inconsistency int
 		for i := a.PrevLogIndex + 1; i < len(raft.Log); i++ {
+			config.LogIf(
+				fmt.Sprintf(
+					"[ENTRYCONFLICT] [len(r.Log) = %d] >= [a.PrevLogIndex = %d] // [a.Entries = %v]",
+					len(raft.Log),
+					a.PrevLogIndex,
+					a.Entries,
+				), config.C.LogConflictingEntries)
 			if spec.GetTerm(&raft.Log[i]) != spec.GetTerm(&a.Entries[newIdx]) {
 				inconsistency = i
 				break

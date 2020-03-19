@@ -18,17 +18,18 @@ type configParam struct {
 	Quorum            float64
 
 	// Logging
-	Prefix            string
-	Logfile           string
-	LogHeartbeats     bool
-	LogHeartbeatsLead bool
-	LogAppendEntries  bool
-	LogPutEntry       bool
-	LogTimers         bool
-	LogElections      bool
-	LogMembership     bool
-	LogGoroutines     bool
-	LogConnections    bool
+	Prefix                string
+	Logfile               string
+	LogHeartbeats         bool
+	LogHeartbeatsLead     bool
+	LogAppendEntries      bool
+	LogPutEntry           bool
+	LogTimers             bool
+	LogElections          bool
+	LogMembership         bool
+	LogGoroutines         bool
+	LogConnections        bool
+	LogConflictingEntries bool
 
 	LogDigestEntries        bool
 	LogDigestEntriesVerbose bool
