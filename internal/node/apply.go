@@ -14,8 +14,8 @@ import (
 //   - For change in range(r.CommitIndex, idx):
 //       - Tries to apply change. Terminates program on failure.
 //       - Updates r.CommitIndex = idx
-// TODO (03/15 @ 13:38): Hook up after DFS is working sort of.
-func applyCommits(idx int) bool {
+func applyCommits(idx int) *responses.Result {
+    var r *responses.Result
     spec.RaftRWMutex.Lock()
     defer spec.RaftRWMutex.Unlock()
 
@@ -28,33 +28,39 @@ func applyCommits(idx int) bool {
         config.LogIf(
             fmt.Sprintf("[CONNERROR] applyCommits failed to connect to [PID=%d]. Aborting", self.PID),
             config.C.LogConnections)
-        return false
+        return &responses.Result{Success: false}
     }
     defer client.Close()
 
     // Entries to apply to state machine
-    toApply := raft.Log[raft.CommitIndex+1 : idx+1]
-    config.LogIf(fmt.Sprintf("[APPLY]: Applying %d entries", len(toApply)), config.C.LogDigestCommits)
-    for _, entry := range toApply {
+    // Only return entry whose index matches `idx`
+    start := raft.CommitIndex + 1 // inclusive
+    end := idx + 1                // exclusive
+    current := start
+    config.LogIf(fmt.Sprintf("[APPLY]: Applying %d entries", start-end), config.C.LogDigestCommits)
+    for _, entry := range raft.Log[start:end] {
+
         var result responses.Result
         if err := (*client).Call("Filesystem.Execute", entry, &result); err != nil {
             log.Fatal(err)
         }
+        if current == idx {
+            r = &result
+            config.LogIf(
+                fmt.Sprintf("[APPLY]: Found match for requested [IDX=%d]", idx),
+                config.C.LogDigestCommits)
+        }
         config.LogIf(
-            fmt.Sprintf("[APPLY]: Result for %s: %v %v %v %v %v %v %v",
+            fmt.Sprintf("[APPLY]: Result for %s: S:%v D:%v E:%v I:%v",
                 tr(entry, 10),
-                result.Term,
                 result.Success,
                 result.Data,
                 tr(result.Entry, 20),
-                result.Index,
-                result.Error,
-                result.VoteGranted,
-            ),
+                result.Index),
             config.C.LogDigestCommits,
         )
     }
 
     raft.CommitIndex = idx
-    return true
+    return r
 }

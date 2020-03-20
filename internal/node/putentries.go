@@ -64,21 +64,16 @@ func (f *Ocean) PutEntry(entry string, result *responses.Result) error {
 }
 
 func digestCommits() {
-    // Digest commits in order. Applies that fail crash the server
+    // Digest commits in order.
+    //   - Applies that fail crash the server
+    //   - Entries that are not successful are sent downstream
     for commit := range commits {
         config.LogIf(fmt.Sprintf("[APPLY]: Applying index %d", commit.Idx), config.C.LogDigestCommits)
-        if ok := applyCommits(commit.Idx); !ok {
-            log.Fatalf("[APPLY-X] Failed to apply commit [idx=%d]. Terminating.", commit.Idx)
-        }
+        r := applyCommits(commit.Idx)
         config.LogIf(fmt.Sprintf("[APPLY]: Successfully applied index %d", commit.Idx), config.C.LogDigestCommits)
-        resp := &responses.Result{
-            Success: true,
-            Entry:   raft.Log[commit.Idx],
-            Data:    raft.Log[commit.Idx],
-            Index:   commit.Idx,
-        }
+
         select {
-        case commit.C <- resp:
+        case commit.C <- r:
         case <-time.After(time.Second * time.Duration(config.C.RPCTimeout)):
             config.LogIf(fmt.Sprintf("[DIGESTCOMMITS]: Response channel blocked"), config.C.LogDigestCommits)
         }
