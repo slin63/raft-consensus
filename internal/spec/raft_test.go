@@ -33,7 +33,6 @@ func TestGetQuorom(t *testing.T) {
 	if GetQuorum(&self) != 3 {
 		t.Fatalf("Expected 3 quorum members, got %d", GetQuorum(&self))
 	}
-
 }
 
 func TestInit(t *testing.T) {

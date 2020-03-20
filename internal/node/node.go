@@ -20,7 +20,7 @@ var raft *spec.Raft
 var self spec.Self
 
 var entries = make(chan entryC)
-var commits = make(chan int)
+var commits = make(chan commitC)
 var heartbeats = make(chan int)
 var membershipUpdate = make(chan struct{})
 var endElection = make(chan int)

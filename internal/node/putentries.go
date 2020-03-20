@@ -12,13 +12,18 @@ import (
     "github.com/slin63/raft-consensus/pkg/responses"
 )
 
+// Both the following structs contain a channel that
+// digestEntries will use to notify the upstream
+// PutEntry of successful replication/commit application
 type entryC struct {
-    // An entry
+    // Entry to be appended to log
     D string
-
-    // Channel that digestEntries will use to notify upstream
-    // PutEntry of successful replication
     C chan *responses.Result
+}
+type commitC struct {
+    // An index to be committed
+    Idx int
+    C   chan *responses.Result
 }
 
 // Receive entries from a client to be added to our log
@@ -27,27 +32,29 @@ type entryC struct {
 //  - The leader appends the command to its log as a new entry,
 //    then issues AppendEntries RPCs in parallel to each of the
 //    other servers to replicate the entry.
-//  - digestEntries processes entries chan and on successful replication,
+//  - [digestEntries] processes entries chan and on successful replication,
 //    sends a success signal back upstream to PutEntry to indicate the entry
-//      a. was safely replicated
-//      b. will now be applied to the state machine
+//    was safely replicated
+//  - [digestCommits] processes commits chan and on successful commit, returns
+//    information about the committed index back upstream to PutEntry
 func (f *Ocean) PutEntry(entry string, result *responses.Result) error {
-    log.Printf("PutEntry(): %s", tr(entry, 15))
-    resp := make(chan *responses.Result)
+    log.Printf("[PUTENTRY]: BEGINNING PutEntry() FOR: %s", tr(entry, 20))
+    entryCh := make(chan *responses.Result)
+    commCh := make(chan *responses.Result)
 
     // Add new entry to log for processing
-    entries <- entryC{entry, resp}
+    entries <- entryC{entry, entryCh}
 
     select {
-    case r := <-resp:
+    case r := <-entryCh:
         r.Entry = entry
         if r.Success {
             // The entry was successfully processed.
-            // 1. Apply to our own state.
-            // The program will explode if the state application fails.
-            commits <- r.Index
+            // Now apply to our own state.
+            //   - The program will explode if the state application fails.
+            commits <- commitC{r.Index, commCh}
         }
-        *result = *r
+        *result = *<-commCh
     case <-time.After(time.Second * time.Duration(config.C.RPCTimeout)):
         config.LogIf(fmt.Sprintf("[PUTENTRY]: PutEntry timed out waiting for quorum"), config.C.LogPutEntry)
         *result = responses.Result{Term: raft.CurrentTerm, Success: false}
@@ -58,12 +65,21 @@ func (f *Ocean) PutEntry(entry string, result *responses.Result) error {
 
 func digestCommits() {
     // Digest commits in order. Applies that fail crash the server
-    for idx := range commits {
-        config.LogIf(fmt.Sprintf("[APPLY]: Applying index %d", idx), config.C.LogDigestCommits)
-        if ok := applyCommits(idx); !ok {
-            log.Fatalf("[APPLY-X] Failed to apply commit [idx=%d]. Terminating.", idx)
-        } else {
-            config.LogIf(fmt.Sprintf("[APPLY]: Successfully applied index %d", idx), config.C.LogDigestCommits)
+    for commit := range commits {
+        config.LogIf(fmt.Sprintf("[APPLY]: Applying index %d", commit.Idx), config.C.LogDigestCommits)
+        if ok := applyCommits(commit.Idx); !ok {
+            log.Fatalf("[APPLY-X] Failed to apply commit [idx=%d]. Terminating.", commit.Idx)
+        }
+        config.LogIf(fmt.Sprintf("[APPLY]: Successfully applied index %d", commit.Idx), config.C.LogDigestCommits)
+        resp := &responses.Result{
+            Success: true,
+            Entry:   raft.Log[commit.Idx],
+            Index:   commit.Idx,
+        }
+        select {
+        case commit.C <- resp:
+        case <-time.After(time.Second * time.Duration(config.C.RPCTimeout)):
+            config.LogIf(fmt.Sprintf("[DIGESTCOMMITS]: Response channel blocked"), config.C.LogDigestCommits)
         }
     }
 }
