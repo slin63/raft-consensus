@@ -126,14 +126,14 @@ func (f *Ocean) RequestVote(a spec.RequestVoteArgs, result *responses.Result) er
 	// (1) S5.1 Fail if our term is greater
 	if raft.CurrentTerm > a.Term {
 		config.LogIf(fmt.Sprintf("[<-ELECTIONERR]: MISMATCHTERM"), config.C.LogElections)
-		*result = responses.Result{Term: raft.CurrentTerm, VoteGranted: false, Error: MISMATCHTERM}
+		*result = responses.Result{Term: raft.CurrentTerm, VoteGranted: false, Error: responses.MISMATCHTERM}
 		return nil
 	}
 
 	// (2) S5.2, S5.4 Make sure we haven't already voted for someone else or for this PID
 	if raft.VotedFor != spec.NOCANDIDATE {
 		config.LogIf(fmt.Sprintf("[<-ELECTIONERR]: ALREADYVOTED [raft.VotedFor=%d]", raft.VotedFor), config.C.LogElections)
-		*result = responses.Result{Term: raft.CurrentTerm, VoteGranted: false, Error: ALREADYVOTED}
+		*result = responses.Result{Term: raft.CurrentTerm, VoteGranted: false, Error: responses.ALREADYVOTED}
 		return nil
 	}
 
@@ -141,12 +141,12 @@ func (f *Ocean) RequestVote(a spec.RequestVoteArgs, result *responses.Result) er
 	// (a) Comparing log terms and (b) log length
 	if a.LastLogTerm < spec.GetTerm(raft.GetLastEntry()) {
 		config.LogIf(fmt.Sprintf("[<-ELECTIONERR]: OUTDATEDLOGTERM"), config.C.LogElections)
-		*result = responses.Result{Term: raft.CurrentTerm, VoteGranted: false, Error: OUTDATEDLOGTERM}
+		*result = responses.Result{Term: raft.CurrentTerm, VoteGranted: false, Error: responses.OUTDATEDLOGTERM}
 		return nil
 	} else if a.LastLogTerm == spec.GetTerm(raft.GetLastEntry()) {
 		if a.LastLogIndex < len(raft.Log)-1 {
 			config.LogIf(fmt.Sprintf("[<-ELECTIONERR]: OUTDATEDLOGLENGTH"), config.C.LogElections)
-			*result = responses.Result{Term: raft.CurrentTerm, VoteGranted: false, Error: OUTDATEDLOGLENGTH}
+			*result = responses.Result{Term: raft.CurrentTerm, VoteGranted: false, Error: responses.OUTDATEDLOGLENGTH}
 			return nil
 		}
 	}

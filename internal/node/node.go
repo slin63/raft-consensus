@@ -11,6 +11,7 @@ import (
 
     "github.com/slin63/raft-consensus/internal/config"
     "github.com/slin63/raft-consensus/internal/spec"
+    "github.com/slin63/raft-consensus/pkg/responses"
 )
 
 // Raft state
@@ -117,7 +118,7 @@ func dispatchHeartbeats() {
                 r := CallAppendEntries(PID, raft.GetAppendEntriesArgs(&self))
                 config.LogIf(
                     fmt.Sprintf("[TERM=%d] [HEARTBEAT->]: DONE FROM [PID=%d]", raft.CurrentTerm, PID),
-                    (config.C.LogHeartbeatsLead && r.Error != CONNERROR),
+                    (config.C.LogHeartbeatsLead && r.Error != responses.CONNERROR),
                 )
             }(PID)
         }

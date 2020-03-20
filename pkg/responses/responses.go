@@ -1,5 +1,21 @@
 package responses
 
+// RPC Error Enums
+type RPCError int
+
+const (
+	NONE RPCError = iota
+	MISMATCHTERM
+	MISMATCHLOGTERM
+	MISSINGLOGENTRY
+	CONFLICTINGENTRY
+	ALREADYVOTED
+	OUTDATEDLOGTERM
+	OUTDATEDLOGLENGTH
+	OUTDATEDRESPONSE
+	CONNERROR
+)
+
 type Result struct {
 	// CurrentTerm, for leader to update itself
 	Term int
@@ -17,7 +33,7 @@ type Result struct {
 	Index int
 
 	// Error code for testing
-	Error int
+	Error RPCError
 
 	// If the sending candidate received the vote
 	VoteGranted bool
