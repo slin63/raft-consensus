@@ -74,6 +74,7 @@ func digestCommits() {
         resp := &responses.Result{
             Success: true,
             Entry:   raft.Log[commit.Idx],
+            Data:    raft.Log[commit.Idx],
             Index:   commit.Idx,
         }
         select {
@@ -137,50 +138,50 @@ func appendEntriesUntilSuccess(raft *spec.Raft, PID int) *responses.Result {
     var result *responses.Result
     // If last log index >= nextIndex for a follower,
     // send log entries starting at nextIndex
-    if len(raft.Log)-1 >= raft.NextIndex[PID] {
-        for {
-            // Regenerate arguments on each call, because
-            // raft state may have changed between calls
-            spec.RaftRWMutex.RLock()
-            args := raft.GetAppendEntriesArgs(&self)
-            args.PrevLogIndex = raft.NextIndex[PID] - 1
-            args.PrevLogTerm = spec.GetTerm(&raft.Log[args.PrevLogIndex])
-            args.Entries = raft.Log[raft.NextIndex[PID]:]
-            config.LogIf(
-                fmt.Sprintf("appendEntriesUntilSuccess() with args: %v, %v, %v, %v, %v",
-                    args.Term,
-                    args.LeaderId,
-                    args.PrevLogIndex,
-                    args.PrevLogTerm,
-                    args.LeaderCommit,
-                ),
-                config.C.LogAppendEntries)
-            spec.RaftRWMutex.RUnlock()
-            result = CallAppendEntries(PID, args)
-
-            // Success! Increment next/matchIndex as a function of our inputs
-            // Otherwise, decrement nextIndex and try again.
-            spec.RaftRWMutex.Lock()
-            if result.Success {
-                raft.MatchIndex[PID] = args.PrevLogIndex + len(args.Entries)
-                raft.NextIndex[PID] = raft.MatchIndex[PID] + 1
-                spec.RaftRWMutex.Unlock()
-                break
-            } else {
-                // Decrement NextIndex if the failure was due to log consistency.
-                // If not, update our term and step down
-                if result.Term > raft.CurrentTerm {
-                    raft.CurrentTerm = result.Term
-                    raft.Role = spec.FOLLOWER
-                } else {
-                    raft.NextIndex[PID] -= 1
-                }
-            }
-            spec.RaftRWMutex.Unlock()
-        }
-    } else {
-        log.Printf("log length was weird")
+    if len(raft.Log)-1 < raft.NextIndex[PID] {
+        log.Fatalf("[PUTENTRY->]: Log length was weird")
     }
+
     log.Printf("[PUTENTRY->]: [PID=%d]", PID)
-    return result
+    for {
+        // Regenerate arguments on each call, because
+        // raft state may have changed between calls
+        spec.RaftRWMutex.RLock()
+        args := raft.GetAppendEntriesArgs(&self)
+        args.PrevLogIndex = raft.NextIndex[PID] - 1
+        args.PrevLogTerm = spec.GetTerm(&raft.Log[args.PrevLogIndex])
+        args.Entries = raft.Log[raft.NextIndex[PID]:]
+        config.LogIf(
+            fmt.Sprintf("appendEntriesUntilSuccess() with args: T:%v, L:%v, PLI:%v, PLT:%v, LC:%v",
+                args.Term,
+                args.LeaderId,
+                args.PrevLogIndex,
+                args.PrevLogTerm,
+                args.LeaderCommit,
+            ),
+            config.C.LogAppendEntries)
+        spec.RaftRWMutex.RUnlock()
+        result = CallAppendEntries(PID, args)
+
+        // Success! Increment next/matchIndex as a function of our inputs
+        // Otherwise, decrement nextIndex and try again.
+        spec.RaftRWMutex.Lock()
+        if result.Success {
+            raft.MatchIndex[PID] = args.PrevLogIndex + len(args.Entries)
+            raft.NextIndex[PID] = raft.MatchIndex[PID] + 1
+            spec.RaftRWMutex.Unlock()
+            return result
+        }
+
+        // Decrement NextIndex if the failure was due to log consistency.
+        // If not, update our term and step down
+        if result.Term > raft.CurrentTerm {
+            raft.CurrentTerm = result.Term
+            raft.Role = spec.FOLLOWER
+        } else {
+            raft.NextIndex[PID] -= 1
+        }
+
+        spec.RaftRWMutex.Unlock()
+    }
 }
