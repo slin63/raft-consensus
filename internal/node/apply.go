@@ -39,7 +39,7 @@ func applyCommits(idx int) *responses.Result {
     start := raft.CommitIndex + 1 // inclusive
     end := idx + 1                // exclusive
     current := start
-    config.LogIf(fmt.Sprintf("[APPLY]: Applying %d entries", start-end), config.C.LogDigestCommits)
+    config.LogIf(fmt.Sprintf("[APPLY]: Applying %d entries", end-start), config.C.LogDigestCommits)
     for _, entry := range raft.Log[start:end] {
         var result responses.Result
         if err := (*client).Call("Filesystem.Execute", entry, &result); err != nil {
