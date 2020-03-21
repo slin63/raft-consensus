@@ -109,7 +109,9 @@ func appendEntriesUntilSuccess(raft *spec.Raft, PID int) *responses.Result {
         if result.Term > raft.CurrentTerm {
             raft.CurrentTerm = result.Term
             raft.Role = spec.FOLLOWER
-        } else {
+        }
+
+        if result.Error != responses.CONNERROR {
             raft.NextIndex[PID] -= 1
         }
 
