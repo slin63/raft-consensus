@@ -34,7 +34,11 @@ func serveOceanRPC() {
 func connect(PID int, port string) (*rpc.Client, error) {
     var client *rpc.Client
     var err error
-    node := self.MemberMap[PID]
+    node, ok := self.MemberMap[PID]
+    if !ok {
+        config.LogIf(fmt.Sprintf("[CONNERROR-X] Was attempting to dial dead PID. [PID=%d] [ERR=%v]", PID, err), config.C.LogConnections)
+        return client, errors.New(fmt.Sprintf("Node with [PID=%d] is dead.", PID))
+    }
     c := make(chan *rpc.Client)
 
     // Timeout if dialing takes too long. (https://github.com/golang/go/wiki/Timeouts)
