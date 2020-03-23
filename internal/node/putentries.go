@@ -37,11 +37,11 @@ type commitC struct {
 //  - [digestCommits] processes commits chan and on successful commit, returns
 //    information about the committed index back upstream to PutEntry
 func (f *Ocean) PutEntry(entry string, result *responses.Result) error {
-    log.Printf("[PUTENTRY]: BEGINNING PutEntry() FOR: %s", tr(entry, 20))
     // PutEntry can be called by the client while it is searching
     // for the leader. If so, respond with leader information
     if raft.Role != spec.LEADER {
-        result = &responses.Result{
+        log.Printf("[PUTENTRY]: REDIRECTING client to leader at %d:%s", raft.LeaderId, self.MemberMap[raft.LeaderId].IP)
+        *result = responses.Result{
             Data:    fmt.Sprintf("%d,%s", raft.LeaderId, self.MemberMap[raft.LeaderId].IP),
             Success: false,
             Error:   responses.LEADERREDIRECT,
