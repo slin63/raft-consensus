@@ -128,5 +128,6 @@ func appendEntriesUntilSuccess(raft *spec.Raft, PID int) *responses.Result {
         }
 
         spec.RaftRWMutex.Unlock()
+        time.Sleep(time.Second * time.Duration(config.C.RPCRetryInterval))
     }
 }
