@@ -95,7 +95,8 @@ func appendEntriesUntilSuccess(raft *spec.Raft, PID int) *responses.Result {
         args.PrevLogTerm = spec.GetTerm(&raft.Log[args.PrevLogIndex])
         args.Entries = raft.Log[raft.NextIndex[PID]:]
         config.LogIf(
-            fmt.Sprintf("appendEntriesUntilSuccess() with args: T:%v, L:%v, PLI:%v, PLT:%v, LC:%v",
+            fmt.Sprintf("appendEntriesUntilSuccess() to [PID=%d] with args: T:%v, L:%v, PLI:%v, PLT:%v, LC:%v",
+                PID,
                 args.Term,
                 args.LeaderId,
                 args.PrevLogIndex,
@@ -105,6 +106,7 @@ func appendEntriesUntilSuccess(raft *spec.Raft, PID int) *responses.Result {
             config.C.LogAppendEntries)
         spec.RaftRWMutex.RUnlock()
         result = CallAppendEntries(PID, args)
+        log.Println(result)
 
         // Success! Increment next/matchIndex as a function of our inputs
         // Otherwise, decrement nextIndex and try again.
