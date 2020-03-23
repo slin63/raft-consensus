@@ -164,6 +164,7 @@ func (f *Ocean) AppendEntries(a spec.AppendEntriesArgs, result *responses.Result
 			config.C.LogAppendEntries,
 		)
 	}
+	raft.LeaderId = a.LeaderId
 	spec.RaftRWMutex.Unlock()
 
 	result.Success = true

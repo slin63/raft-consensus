@@ -56,6 +56,9 @@ type Raft struct {
 	ElectTimeout int64
 	ElectTimer   *time.Timer
 
+	// To redirect clients
+	LeaderId int
+
 	Wg *sync.WaitGroup
 }
 

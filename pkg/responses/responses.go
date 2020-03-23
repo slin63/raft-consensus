@@ -15,6 +15,7 @@ const (
 	OUTDATEDRESPONSE
 	CONNERROR
 	FILENOTFOUND
+	LEADERREDIRECT
 )
 
 type Result struct {
