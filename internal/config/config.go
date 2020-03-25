@@ -30,6 +30,7 @@ type configParam struct {
 	LogGoroutines         bool
 	LogConnections        bool
 	LogConflictingEntries bool
+	LogRestore            bool
 
 	LogDigestEntries        bool
 	LogDigestEntriesVerbose bool

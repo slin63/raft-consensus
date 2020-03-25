@@ -28,6 +28,12 @@ var endElection = make(chan int)
 var block = make(chan int, 1)
 
 func Live() {
+    // Check if I was restarted and need to restore state from leader log
+    var rejoin bool
+    if _, err := os.Stat(config.C.Logfile); err == nil {
+        rejoin = true
+    }
+
     // Initialize logging to file
     f, err := os.OpenFile(config.C.Logfile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
     if err != nil {
@@ -48,11 +54,11 @@ func Live() {
     raft.Init(&self)
 
     spec.ReportOnline(raft.ElectTimeout)
-    go live()
+    go live(rejoin)
     <-block
 }
 
-func live() {
+func live(rejoin bool) {
     go serveOceanRPC()
     go subscribeMembership(membershipUpdate)
     go heartbeat()
@@ -64,8 +70,12 @@ func live() {
         go logGoroutines()
     }
 
-    // Wait for other nodes to come online
+    // Wait for other nodes to come online. Wait extra if you're rejoining the cluster.
     // Start the election timer
+    if rejoin {
+        config.LogIf(fmt.Sprintf("[REJOIN]"), config.C.LogRestore)
+        time.Sleep(time.Second * 1)
+    }
     time.Sleep(time.Second * 1)
     raft.ResetElectTimer()
 }
@@ -116,6 +126,10 @@ func dispatchHeartbeats() {
                     config.C.LogHeartbeatsLead,
                 )
                 r := CallAppendEntries(PID, raft.GetAppendEntriesArgs(&self))
+                if !r.Success && r.Error == responses.MISSINGLOGENTRY {
+                    config.LogIf(fmt.Sprintf("[RETRYAPPENDENTRY] [PID=%d]", PID), config.C.LogConflictingEntries)
+                    r = appendEntriesUntilSuccess(raft, PID)
+                }
                 config.LogIf(
                     fmt.Sprintf("[TERM=%d] [HEARTBEAT->]: DONE FROM [PID=%d]", raft.CurrentTerm, PID),
                     (config.C.LogHeartbeatsLead && r.Error != responses.CONNERROR),

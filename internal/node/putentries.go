@@ -79,10 +79,13 @@ func (f *Ocean) PutEntry(entry string, result *responses.Result) error {
 //    a successful response.
 func appendEntriesUntilSuccess(raft *spec.Raft, PID int) *responses.Result {
     var result *responses.Result
+
     // If last log index >= nextIndex for a follower,
-    // send log entries starting at nextIndex
+    // send log entries starting at nextIndex.
+    // (??) Otherwise set NextIndex[PID] to len(raft.Log)-1
     if len(raft.Log)-1 < raft.NextIndex[PID] {
-        log.Fatalf("[PUTENTRY->]: Log length was weird")
+        log.Printf("[PUTENTRY-X]: [len(raft.Log)-1=%d] [raft.NextIndex[PID]=%d]\n", len(raft.Log)-1, raft.NextIndex[PID])
+        raft.NextIndex[PID] = len(raft.Log) - 1
     }
 
     log.Printf("[PUTENTRY->]: [PID=%d]", PID)
@@ -130,6 +133,5 @@ func appendEntriesUntilSuccess(raft *spec.Raft, PID int) *responses.Result {
         }
 
         spec.RaftRWMutex.Unlock()
-        time.Sleep(time.Second * time.Duration(config.C.RPCRetryInterval))
     }
 }
