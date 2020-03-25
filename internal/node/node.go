@@ -82,7 +82,7 @@ func live(rejoin bool) {
 
         select {
         case <-commCh:
-            log.Printf("Holy shit we did it")
+            log.Printf("[RESTORE] COMPLETE")
         case <-time.After(time.Second * time.Duration(config.C.RestoreTimeout)):
             config.LogIf(fmt.Sprintf("[RESTORE]: State restore timed out."), config.C.LogRestore)
         }

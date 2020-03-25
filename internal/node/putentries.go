@@ -79,6 +79,7 @@ func (f *Ocean) PutEntry(entry string, result *responses.Result) error {
 //    a successful response.
 func appendEntriesUntilSuccess(raft *spec.Raft, PID int) *responses.Result {
     var result *responses.Result
+    var retries int
 
     // If last log index >= nextIndex for a follower,
     // send log entries starting at nextIndex.
@@ -130,8 +131,17 @@ func appendEntriesUntilSuccess(raft *spec.Raft, PID int) *responses.Result {
 
         if result.Error != responses.CONNERROR {
             raft.NextIndex[PID] -= 1
+            spec.RaftRWMutex.Unlock()
+            continue
         }
 
+        if retries > 5 {
+            spec.RaftRWMutex.Unlock()
+            return &responses.Result{Success: false, Error: responses.CONNERROR}
+        }
+
+        retries++
+        time.Sleep(time.Second)
         spec.RaftRWMutex.Unlock()
     }
 }
