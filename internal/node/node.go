@@ -3,6 +3,7 @@ package node
 
 import (
     "fmt"
+    "io"
     "log"
     "os"
     "runtime"
@@ -28,12 +29,6 @@ var endElection = make(chan int)
 var block = make(chan int, 1)
 
 func Live() {
-    // Check if I was restarted and need to restore state from leader log
-    var rejoin bool
-    if _, err := os.Stat(config.C.Logfile); err == nil {
-        rejoin = true
-    }
-
     // Initialize logging to file
     f, err := os.OpenFile(config.C.Logfile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
     if err != nil {
@@ -41,8 +36,11 @@ func Live() {
     }
     defer f.Close()
 
+    mw := io.MultiWriter(os.Stdout, f)
+    log.SetOutput(mw)
+
     // Get initial membership info
-    spec.GetSelf(&self)
+    rejoin := spec.GetSelf(&self)
     log.SetPrefix(config.C.Prefix + fmt.Sprintf(" [PID=%d]", self.PID) + " - ")
 
     // Create our raft instance

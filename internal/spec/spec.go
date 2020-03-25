@@ -35,6 +35,7 @@ type Self struct {
 	MemberMap    MemberMapT
 	FingerTable  FingerTableT
 	SuspicionMap SuspicionMapT
+	Rejoin       bool
 }
 
 func ReportOnline(to int64) {
@@ -42,7 +43,7 @@ func ReportOnline(to int64) {
 }
 
 // Query the membership service running on the same machine for membership information.
-func GetSelf(self *Self) {
+func GetSelf(self *Self) bool {
 	var client *rpc.Client
 	var err error
 	for i := 0; i <= config.C.MemberRPCRetryMax; i++ {
@@ -65,4 +66,5 @@ func GetSelf(self *Self) {
 	defer SelfRWMutex.Unlock()
 	*self = reply
 	config.LogIf(fmt.Sprintf("[SELF]: Updated membership"), config.C.LogMembership)
+	return self.Rejoin
 }
