@@ -64,8 +64,8 @@ func (f *Ocean) PutEntry(entry string, result *responses.Result) error {
             // Now apply to our own state.
             //   - The program will explode if the state application fails.
             commits <- commitC{r.Index, commCh}
+            *result = *<-commCh
         }
-        *result = *<-commCh
     case <-time.After(time.Second * time.Duration(config.C.RPCTimeout)):
         config.LogIf(fmt.Sprintf("[PUTENTRY]: PutEntry timed out waiting for quorum"), config.C.LogPutEntry)
         *result = responses.Result{Term: raft.CurrentTerm, Success: false}

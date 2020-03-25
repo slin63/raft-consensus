@@ -70,11 +70,23 @@ func live(rejoin bool) {
         go logGoroutines()
     }
 
-    // Wait for other nodes to come online. Wait extra if you're rejoining the cluster.
+    // Wait for other nodes to come online.
+    // Wait extra if you're rejoining the cluster so you can get all
+    //   the logs and reapplying your state.
     // Start the election timer
     if rejoin {
-        config.LogIf(fmt.Sprintf("[REJOIN]"), config.C.LogRestore)
-        time.Sleep(time.Second * 1)
+        config.LogIf(fmt.Sprintf("[RESTORE]"), config.C.LogRestore)
+        time.Sleep(time.Second * time.Duration(config.C.RestoreWait))
+        commCh := make(chan *responses.Result)
+        commits <- commitC{raft.CommitIndex, commCh}
+        log.Printf("[CommitIndex=%d]", raft.CommitIndex)
+
+        select {
+        case <-commCh:
+            log.Printf("Holy shit we did it")
+        case <-time.After(time.Second * time.Duration(config.C.RestoreTimeout)):
+            config.LogIf(fmt.Sprintf("[RESTORE]: State restore timed out."), config.C.LogRestore)
+        }
     }
     time.Sleep(time.Second * 1)
     raft.ResetElectTimer()

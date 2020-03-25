@@ -17,6 +17,10 @@ type configParam struct {
 	Timescale         int
 	Quorum            float64
 
+	// State Restoration
+	RestoreWait    int
+	RestoreTimeout int
+
 	// Logging
 	Prefix                string
 	Logfile               string
