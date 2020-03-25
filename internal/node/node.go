@@ -76,7 +76,8 @@ func live(rejoin bool) {
         config.LogIf(fmt.Sprintf("[RESTORE]"), config.C.LogRestore)
         time.Sleep(time.Second * time.Duration(config.C.RestoreWait))
         commCh := make(chan *responses.Result)
-        commits <- commitC{raft.CommitIndex, commCh}
+        raft.CommitIndex = 0
+        commits <- commitC{len(raft.Log) - 1, commCh}
         log.Printf("[CommitIndex=%d]", raft.CommitIndex)
 
         select {
