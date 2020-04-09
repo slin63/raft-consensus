@@ -16,9 +16,9 @@ Leeky Raft was created to be used as the consensus layer inside of Chordish DeFi
 
 If you're not familiar with the problem of consensus, I wrote a brief explanation of it here: [chronicpizza.net/posts/consensus](https://www.chronicpizza.net/posts/consensus/).
 
-### Enter: Leeky Raft
+### Leeky Raft: a Fantastical & Absurd Exploration
 
-If you're comfortable with the mechanics of Raft already, or just don't really care that much, you can just skip straight to reading this post: [chronicpizza.net/posts/leekyraft](https://www.chronicpizza.net/posts/leekyraft/).
+If you're comfortable with the mechanics of Raft already, or just don't really care that much, you can just skip straight to reading this post: [chronicpizza.net/posts/leekyraft](https://www.chronicpizza.net/posts/leekyraft/). It's entertaining, supposedly. 
 
 If not, you can read about Raft's basic workings below.
 
