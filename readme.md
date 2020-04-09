@@ -16,6 +16,12 @@ Leeky Raft was created to be used as the consensus layer inside of Chordish DeFi
 
 If you're not familiar with the problem of consensus, I wrote a brief explanation of it here: [chronicpizza.net/posts/consensus](https://www.chronicpizza.net/posts/consensus/).
 
+### Enter: Leeky Raft
+
+If you're comfortable with the mechanics of Raft already, or just don't really care that much, you can just skip straight to reading this post: [chronicpizza.net/posts/leekyraft](https://www.chronicpizza.net/posts/leekyraft/).
+
+If not, you can read about Raft's basic workings below.
+
 ### Why Raft?
 
 Chordish DeFiSh is a distributed file system that uses consistent hashing to equally distribute K files across N nodes. At its core, DeFiSh is a *replicated state machine*.
@@ -75,12 +81,6 @@ I will not discuss the many intricacies of Raft's mechanics here. I originally i
 You won't *need* to read the paper to appreciate the next section, but if you find any of this at all interesting, the paper is very accessible and not at all jargony or dense.
 
 The paper is available here: [In Search of an Understandable Consensus Algorithm](https://pdos.csail.mit.edu/6.824/papers/raft-extended.pdf).
-
-Now that you have a rough feel for Raft, we can talk more about my  implementation of it, Leeky Raft.
-
-### Enter: Leeky Raft
-
-This post is long. So I put it on my website instead! Read it at: [chronicpizza.net/posts/leekyraft](https://www.chronicpizza.net/posts/leekyraft/).
 
 ## Running "tests"*
 

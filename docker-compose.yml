@@ -12,6 +12,7 @@ services:
     build: .
 
   worker:
+    # Delay building this container until introducer is ready
     depends_on:
       - "introducer"
     build: .
